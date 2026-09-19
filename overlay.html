@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Game Keeper – wishlist overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Patrick+Hand&display=block" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1b0e06;
+    --ink-2: #3a200d;
+    --cream: #fce6c6;
+    --paper: #f9dcb3;
+    --tape: #f1cf9f;
+    --orange-hi: #ffd35e;
+    --orange: #f7a51c;
+    --orange-lo: #e0730a;
+    --pink: #dc2a55;
+  }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body.preview { background: #24242c repeating-conic-gradient(#2c2c36 0 25%, #22222a 0 50%) 0 0 / 48px 48px; }
+
+  #stage {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    transform-origin: 0 0; font-family: 'Press Start 2P', monospace; color: var(--cream);
+  }
+  #fx { position: absolute; inset: 0; width: 1920px; height: 1080px; image-rendering: pixelated; pointer-events: none; z-index: 5; }
+
+  /* ---------- alert ---------- */
+  #alert { position: absolute; inset: 0; z-index: 4; }
+  #alert[hidden] { display: none; }
+  .dim { position: absolute; inset: 0; opacity: 0;
+    background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(12,6,2,.62) 0%, rgba(12,6,2,.38) 55%, rgba(12,6,2,0) 100%); }
+  .flash { position: absolute; inset: 0; background: #fff4dc; opacity: 0; mix-blend-mode: screen; }
+  .rays { position: absolute; left: 50%; top: 42%; width: 2400px; height: 2400px; margin: -1200px 0 0 -1200px; opacity: 0; }
+  .rays i { position: absolute; inset: 0; border-radius: 50%;
+    background: repeating-conic-gradient(rgba(255,211,94,.22) 0 7.5deg, rgba(255,211,94,0) 7.5deg 15deg);
+    -webkit-mask: radial-gradient(circle, #000 0%, rgba(0,0,0,.7) 22%, transparent 48%);
+            mask: radial-gradient(circle, #000 0%, rgba(0,0,0,.7) 22%, transparent 48%); }
+  .shaker { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 34px; }
+
+  .logo-wrap { width: 600px; }
+  .logo { width: 100%; display: block; opacity: 0; filter: drop-shadow(0 14px 0 rgba(27,14,6,.35)); }
+
+  .pxtext { position: relative; display: inline-block; white-space: nowrap; line-height: 1; opacity: 0; }
+  .pxtext > span { display: block; }
+  .pxtext .sh { position: absolute; left: 0; top: 0; color: var(--ink); }
+  .pxtext .fill { position: relative; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .headline { font-size: 110px; }
+  .headline .fill { background-image: linear-gradient(180deg, var(--orange-hi) 0%, var(--orange) 48%, var(--orange-lo) 100%); }
+  .counter { display: flex; align-items: flex-end; gap: 36px; opacity: 0; }
+  .counter .pxtext { opacity: 1; }
+  .num { font-size: 150px; }
+  .num .fill { background-image: linear-gradient(180deg, #fffaf0 0%, #fde9c9 55%, #f6cf98 100%); }
+  .unit { font-size: 54px; margin-bottom: 8px; }
+  .unit .fill { background-image: linear-gradient(180deg, var(--orange-hi), var(--orange-lo)); }
+
+  .tag { position: relative; opacity: 0; margin-top: 10px; padding: 16px 70px 26px; background: var(--paper); color: var(--ink);
+    border: 6px solid var(--ink); border-radius: 18px 10px 24px 12px / 12px 22px 10px 18px;
+    box-shadow: 0 12px 0 rgba(27,14,6,.35); font-family: 'Patrick Hand', cursive; font-size: 74px; letter-spacing: 2px; white-space: nowrap; }
+  .tag .txt { position: relative; z-index: 1; }
+  .tag .ul { position: absolute; left: 60px; right: 60px; bottom: 12px; height: 18px; width: calc(100% - 120px); overflow: visible; }
+  .tag .dash { position: absolute; top: 50%; width: 46px; height: 60px; margin-top: -30px; overflow: visible; }
+  .tag .dash.l { left: 12px; }
+  .tag .dash.r { right: 12px; transform: scaleX(-1); }
+  .tape { position: absolute; width: 120px; height: 40px; background: var(--tape); border: 5px solid var(--ink); border-radius: 4px; }
+  .tape.tl { left: -44px; top: -22px; transform: rotate(-32deg); }
+  .tape.br { right: -44px; bottom: -18px; transform: rotate(-32deg); }
+
+  /* ---------- widget ---------- */
+  #widget { position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 14px; }
+  #widget[hidden] { display: none; }
+  #widget.pos-top-left     { top: 44px; left: 44px;   transform-origin: top left; align-items: flex-start; }
+  #widget.pos-top-right    { top: 44px; right: 44px;  transform-origin: top right; align-items: flex-end; }
+  #widget.pos-bottom-left  { bottom: 44px; left: 44px;  transform-origin: bottom left; align-items: flex-start; }
+  #widget.pos-bottom-right { bottom: 44px; right: 44px; transform-origin: bottom right; align-items: flex-end; }
+  #widget.pos-top-center   { top: 44px; left: 50%; transform-origin: top center; align-items: center; }
+  #widget.pos-bottom-center{ bottom: 44px; left: 50%; transform-origin: bottom center; align-items: center; }
+  .wbox { position: relative; background: rgba(27,14,6,.9); padding: 18px 22px 16px; min-width: 460px; box-sizing: border-box;
+    box-shadow: 0 -4px 0 0 var(--cream), 0 4px 0 0 var(--cream), -4px 0 0 0 var(--cream), 4px 0 0 0 var(--cream),
+                0 -8px 0 0 var(--ink), 0 8px 0 0 var(--ink), -8px 0 0 0 var(--ink), 8px 0 0 0 var(--ink),
+                0 16px 0 0 rgba(0,0,0,.3); }
+  .wbox[hidden] { display: none; }
+  .wrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+  .wtitle { font-size: 16px; color: var(--cream); padding-bottom: 6px; }
+  .wcount { position: relative; font-size: 32px; color: var(--orange); text-shadow: 0 4px 0 #6b3405; }
+  .wbar { display: flex; gap: 4px; height: 26px; margin: 14px 0 12px; padding: 4px; background: var(--ink-2); box-shadow: inset 0 0 0 3px #4d2c12; }
+  .wbar i { flex: 1; background: #5b3517; }
+  .wbar i.on { background: linear-gradient(180deg, var(--orange-hi), var(--orange) 50%, var(--orange-lo)); }
+  .wbar i.edge { animation: blink 0.9s steps(2, end) infinite; }
+  @keyframes blink { 50% { background: #ffe9a8; } }
+  .wsub { font-size: 14px; color: #d9bf9b; }
+  .wsub b { color: var(--cream); font-weight: normal; }
+  .today { font-size: 16px; color: #fff; background: var(--pink); padding: 10px 14px 9px; box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), 0 10px 0 0 rgba(0,0,0,.3); }
+  .today[hidden] { display: none; }
+  .floater { position: absolute; right: 0; top: -6px; font-size: 22px; color: #7dff8a; text-shadow: 0 3px 0 #0b3a12; pointer-events: none; }
+
+  /* ---------- debug / info ---------- */
+  #info { position: absolute; left: 16px; bottom: 16px; z-index: 10; font: 14px/1.4 ui-monospace, Menlo, monospace; color: #fff;
+    background: rgba(0,0,0,.72); padding: 10px 12px; border-radius: 6px; white-space: pre; max-width: 900px; }
+  #info[hidden] { display: none; }
+  #soundBtn { position: absolute; right: 16px; bottom: 16px; z-index: 10; font: 600 15px system-ui; padding: 10px 14px; border-radius: 8px; border: 0; background: #f7a51c; color: #1b0e06; cursor: pointer; }
+  #soundBtn[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="widget" hidden>
+    <div class="wbox" id="wbox">
+      <div class="wrow"><span class="wtitle" id="wTitle">WISHLISTY</span><span class="wcount" id="wCount">0</span></div>
+      <div class="wbar" id="wBar"></div>
+      <div class="wrow wsub"><span>CEL <b id="wNext">0</b></span><span>JESZCZE <b id="wLeft">0</b></span></div>
+    </div>
+    <div class="today" id="wToday" hidden></div>
+  </div>
+
+  <div id="alert" hidden>
+    <div class="dim" id="aDim"></div>
+    <div class="rays" id="aRays"><i id="aRaysSpin"></i></div>
+    <div class="shaker" id="aShaker">
+      <div class="logo-wrap" id="aLogoWrap"><img class="logo" id="aLogo" src="logo.png" alt=""></div>
+      <div class="pxtext headline" id="aHead"><span class="sh"></span><span class="fill"></span></div>
+      <div class="counter" id="aCounter">
+        <div class="pxtext num" id="aNum"><span class="sh"></span><span class="fill"></span></div>
+        <div class="pxtext unit" id="aUnit"><span class="sh"></span><span class="fill"></span></div>
+      </div>
+      <div class="tag" id="aTag">
+        <i class="tape tl"></i><i class="tape br"></i>
+        <svg class="dash l" viewBox="0 0 46 60"><path d="M4 12 L40 20 M2 30 L42 30 M4 48 L40 40" stroke="#dc2a55" stroke-width="7" stroke-linecap="round" fill="none"/></svg>
+        <svg class="dash r" viewBox="0 0 46 60"><path d="M4 12 L40 20 M2 30 L42 30 M4 48 L40 40" stroke="#dc2a55" stroke-width="7" stroke-linecap="round" fill="none"/></svg>
+        <span class="txt" id="aTagTxt"></span>
+        <svg class="ul" viewBox="0 0 1000 18" preserveAspectRatio="none"><path id="aUl" d="M6 12 C 220 4, 520 16, 994 6" stroke="#dc2a55" stroke-width="9" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="1000"/></svg>
+      </div>
+    </div>
+    <div class="flash" id="aFlash"></div>
+  </div>
+
+  <canvas id="fx" width="480" height="270"></canvas>
+</div>
+<div id="info" hidden></div>
+<button id="soundBtn" hidden>🔊 Kliknij, żeby włączyć dźwięk (tylko podgląd)</button>
+
+<script src="common.js"></script>
+<script>
+'use strict';
+const VERSION = '1.0.0';
+const P = WL.readParams();
+const $ = (id) => document.getElementById(id);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+if (P.preview) document.body.classList.add('preview');
+
+// ---------- skalowanie sceny 1920×1080 do rozmiaru źródła ----------
+function fitStage() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  $('stage').style.transform = `scale(${s})`;
+}
+addEventListener('resize', fitStage);
+fitStage();
+
+// ---------- stan ----------
+const KEY_STATE = `wl.state.${P.topic}`;
+const KEY_CFG = `wl.cfg.${P.topic}`;
+const savedCfg = WL.store.get(KEY_CFG, null);
+let cfg = WL.normalizeConfig(savedCfg && savedCfg.cfg);
+let cfgTime = (savedCfg && savedCfg.time) || 0;
+const S = Object.assign({
+  raw: null, rawTime: 0, today: null, yesterday: null,
+  lastCelebrated: null, pending: null, pendingFrom: null,
+  lastPlayed: null, streamStartedAt: null,
+}, WL.store.get(KEY_STATE, {}));
+let playing = false;
+let streamKnown = false;
+let streaming = false;
+const inOBS = !!window.obsstudio;
+
+function saveState() { WL.store.set(KEY_STATE, S); }
+function saveCfg() { WL.store.set(KEY_CFG, { cfg, time: cfgTime }); }
+function total() { return S.raw == null ? null : S.raw + cfg.offset; }
+
+// ---------- progi ----------
+function evaluate() {
+  const t = total();
+  if (t == null) return;
+  const tier = WL.tierOf(t, cfg.step);
+  if (S.lastCelebrated == null) {
+    // pierwsze uruchomienie: bieżący próg uznajemy za już świętowany
+    S.lastCelebrated = tier;
+    saveState();
+    return;
+  }
+  if (tier > S.lastCelebrated && (S.pending == null || tier > S.pending)) {
+    if (S.pending == null) S.pendingFrom = S.lastCelebrated;
+    S.pending = tier;
+    saveState();
+    publishStatusSoon();
+  }
+}
+
+// Zmiana progu/korekty nie powinna odpalać animacji za coś, co już było.
+function rebaseline() {
+  const t = total();
+  if (t == null || S.lastCelebrated == null || S.pending != null) return;
+  S.lastCelebrated = Math.max(S.lastCelebrated, WL.tierOf(t, cfg.step));
+  saveState();
+}
+
+function gate() {
+  if (!cfg.alertsEnabled) return { ok: false, code: 'paused', text: 'Animacje wstrzymane w panelu' };
+  if (!cfg.requireStream) return { ok: true, code: 'ok', text: 'Gotowe (bez wymogu streama)' };
+  if (!streamKnown) {
+    return inOBS
+      ? { ok: false, code: 'noperm', text: 'Brak dostępu do statusu OBS – ustaw uprawnienia strony w źródle' }
+      : { ok: false, code: 'noobs', text: 'Overlay działa poza OBS – nie wiem, czy jest stream' };
+  }
+  if (!streaming) return { ok: false, code: 'offline', text: 'Stream offline' };
+  const readyAt = S.streamStartedAt + cfg.minUptimeMin * 60000;
+  if (Date.now() < readyAt) return { ok: false, code: 'uptime', readyAt, text: `Czekam, aż stream potrwa ${cfg.minUptimeMin} min` };
+  return { ok: true, code: 'ok', text: 'Gotowe' };
+}
+
+let lastGateCode = null;
+function tick() {
+  const g = gate();
+  if (g.code !== lastGateCode) { lastGateCode = g.code; publishStatusSoon(); }
+  if (S.pending != null && !playing && g.ok) playPending();
+  renderInfo();
+}
+
+function playPending() {
+  if (S.pending == null || playing) return;
+  const tier = S.pending;
+  const from = S.pendingFrom != null ? S.pendingFrom : tier - cfg.step;
+  // oznaczamy od razu, żeby odświeżenie źródła w trakcie nie puściło animacji drugi raz
+  S.lastCelebrated = Math.max(S.lastCelebrated ?? tier, tier);
+  S.pending = null;
+  S.pendingFrom = null;
+  S.lastPlayed = { tier, from, at: Date.now() };
+  saveState();
+  playAlert(tier, from);
+}
+
+// ---------- status streama z OBS ----------
+function setStreaming(on, source) {
+  streamKnown = true;
+  if (on && !streaming) {
+    const stale = !S.streamStartedAt || Date.now() - S.streamStartedAt > 18 * 3600e3;
+    if (source === 'event' || stale) S.streamStartedAt = Date.now();
+  }
+  if (!on) S.streamStartedAt = null;
+  if (on !== streaming) { streaming = on; saveState(); publishStatusSoon(); }
+}
+if (inOBS) {
+  addEventListener('obsStreamingStarted', () => setStreaming(true, 'event'));
+  addEventListener('obsStreamingStopped', () => setStreaming(false, 'event'));
+  const pollObs = () => {
+    try { window.obsstudio.getStatus && window.obsstudio.getStatus((s) => s && setStreaming(!!s.streaming, 'poll')); } catch (e) {}
+  };
+  pollObs();
+  setInterval(pollObs, 20000);
+} else if (P.preview) {
+  // podgląd w przeglądarce: udajemy, że stream trwa od otwarcia strony
+  streamKnown = true;
+  streaming = true;
+  S.streamStartedAt = Date.now();
+}
+
+// ---------- widget ----------
+const SEGMENTS = 20;
+const wBar = $('wBar');
+for (let i = 0; i < SEGMENTS; i++) wBar.appendChild(document.createElement('i'));
+let shownTotal = null;
+let countAnim = null;
+
+function renderWidget() {
+  const w = $('widget');
+  const t = total();
+  const todayTxt = todayText();
+  const showBar = cfg.showBar && t != null;
+  const showToday = cfg.showToday && !!todayTxt;
+  w.hidden = !(showBar || showToday);
+  w.className = 'pos-' + cfg.widgetPos;
+  const center = cfg.widgetPos.endsWith('center') ? 'translateX(-50%) ' : '';
+  w.style.transform = `${center}scale(${cfg.widgetScale})`;
+  $('wbox').hidden = !showBar;
+  $('wToday').hidden = !showToday;
+  $('wToday').textContent = todayTxt || '';
+  $('wTitle').textContent = cfg.widgetTitle;
+  if (t == null) return;
+
+  const prev = WL.tierOf(t, cfg.step);
+  const next = prev + cfg.step;
+  const filled = Math.floor(((t - prev) / cfg.step) * SEGMENTS);
+  Array.from(wBar.children).forEach((el, i) => {
+    el.className = i < filled ? 'on' : i === filled ? 'edge' : '';
+  });
+  $('wNext').textContent = WL.fmt(next);
+  $('wLeft').textContent = WL.fmt(next - t);
+
+  if (shownTotal == null) { shownTotal = t; $('wCount').textContent = WL.fmt(t); return; }
+  if (t !== shownTotal) animateCount(shownTotal, t);
+}
+
+function animateCount(a, b) {
+  if (countAnim) cancelAnimationFrame(countAnim);
+  if (b > a) floater('+' + WL.fmt(b - a));
+  const t0 = performance.now();
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / 900);
+    const v = Math.round(a + (b - a) * (1 - Math.pow(1 - p, 3)));
+    $('wCount').textContent = WL.fmt(v);
+    shownTotal = v;
+    countAnim = p < 1 ? requestAnimationFrame(step) : null;
+  };
+  countAnim = requestAnimationFrame(step);
+}
+
+function floater(text) {
+  const f = document.createElement('div');
+  f.className = 'floater';
+  f.textContent = text;
+  $('wCount').appendChild(f);
+  f.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: 'translateY(-60px)', opacity: 0 }],
+    { duration: 1600, easing: 'steps(12, end)' }).onfinish = () => f.remove();
+}
+
+function todayText() {
+  if (S.today && S.today.adds > 0) return `+${WL.fmt(S.today.adds)} DZIŚ`;
+  if (S.yesterday && S.yesterday.adds > 0) return `+${WL.fmt(S.yesterday.adds)} WCZORAJ`;
+  return '';
+}
+
+// ---------- dźwięk (WebAudio, chiptune) ----------
+const Sfx = (() => {
+  let ctx = null, master = null, noiseBuf = null;
+  const NOTE = { C5: 523.25, E5: 659.25, G5: 783.99, B5: 987.77, C6: 1046.5, E6: 1318.5, G6: 1568, C7: 2093 };
+  function ensure() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ctx = new AC();
+      master = ctx.createGain();
+      master.connect(ctx.destination);
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    master.gain.value = cfg.volume * 0.55;
+    return true;
+  }
+  function tone(f, t, d, { type = 'square', v = 0.25, f2 = null } = {}) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.005);
+    g.gain.setValueAtTime(v, t + d * 0.55);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(master);
+    o.start(t);
+    o.stop(t + d + 0.03);
+  }
+  function noise(t, d, { v = 0.25, freq = 1200, q = 0.7, type = 'bandpass' } = {}) {
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf;
+    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    g.gain.setValueAtTime(v, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    s.connect(f).connect(g).connect(master);
+    s.start(t);
+    s.stop(t + d + 0.03);
+  }
+  const now = () => ctx.currentTime + 0.01;
+  return {
+    ensure,
+    intro() {
+      if (!ensure()) return;
+      const t = now();
+      ['C5', 'E5', 'G5', 'C6', 'E6', 'G6'].forEach((n, i) => tone(NOTE[n], t + i * 0.055, 0.09, { v: 0.16 }));
+      noise(t, 0.5, { v: 0.12, freq: 3000, type: 'highpass' });
+    },
+    thud() {
+      if (!ensure()) return;
+      const t = now();
+      tone(160, t, 0.22, { v: 0.4, f2: 40 });
+      noise(t, 0.18, { v: 0.3, freq: 400, type: 'lowpass' });
+    },
+    slam() {
+      if (!ensure()) return;
+      const t = now();
+      tone(330, t, 0.3, { v: 0.32, f2: 55 });
+      tone(165, t, 0.3, { type: 'triangle', v: 0.4, f2: 40 });
+      noise(t, 0.35, { v: 0.35, freq: 900 });
+    },
+    tick(p) {
+      if (!ensure()) return;
+      tone(700 + 900 * p, now(), 0.04, { v: 0.09 });
+    },
+    fanfare() {
+      if (!ensure()) return;
+      const t = now();
+      tone(NOTE.B5, t, 0.07, { v: 0.2 });
+      tone(NOTE.E6, t + 0.07, 0.35, { v: 0.2 });
+      ['C5', 'E5', 'G5', 'C6', 'E6', 'G6', 'C7'].forEach((n, i) => tone(NOTE[n], t + 0.12 + i * 0.05, 0.12, { v: 0.12 }));
+      const t2 = t + 0.5;
+      ['C6', 'E6', 'G6'].forEach((n) => tone(NOTE[n], t2, 1.1, { type: 'triangle', v: 0.14 }));
+      tone(NOTE.C5, t2, 0.9, { v: 0.1 });
+      noise(t, 0.7, { v: 0.28, freq: 5000, type: 'highpass' });
+    },
+    exit() {
+      if (!ensure()) return;
+      const t = now();
+      ['G6', 'E6', 'C6', 'G5'].forEach((n, i) => tone(NOTE[n], t + i * 0.06, 0.08, { v: 0.1 }));
+    },
+  };
+})();
+
+// ---------- cząsteczki (canvas 480×270 skalowany ×4 = prawdziwe piksele) ----------
+const FX = (() => {
+  const cv = $('fx'), g = cv.getContext('2d');
+  const W = 480, H = 270;
+  g.imageSmoothingEnabled = false;
+  const parts = [];
+  let rainUntil = 0, raf = null, last = 0, rainAcc = 0;
+
+  const coinFrames = [9, 7, 5, 3, 1, 3, 5, 7].map((w) => {
+    const c = document.createElement('canvas');
+    c.width = 9; c.height = 9;
+    const x = c.getContext('2d');
+    const off = (9 - w) / 2;
+    for (let yy = 0; yy < 9; yy++) {
+      for (let xx = 0; xx < w; xx++) {
+        const nx = (xx + 0.5 - w / 2) / (w / 2), ny = (yy + 0.5 - 4.5) / 4.5;
+        const d = nx * nx + ny * ny;
+        if (w > 1 && d > 1.05) continue;
+        x.fillStyle = d > 0.6 || w === 1 ? '#8a4b06' : d > 0.28 ? '#f7a51c' : '#ffd35e';
+        if (w >= 5 && xx === Math.floor(w / 2) - 1 && yy === 2) x.fillStyle = '#fff3b0';
+        x.fillRect(off + xx, yy, 1, 1);
+      }
+    }
+    return c;
+  });
+  const COLORS = ['#ffd35e', '#f7a51c', '#dc2a55', '#fce6c6', '#e0730a'];
+
+  function add(p) { parts.push(p); start(); }
+  function coin(x, y, vx, vy, grav) {
+    add({ k: 'coin', x, y, vx, vy, g: grav, f: Math.random() * 8, fs: 10 + Math.random() * 10, life: 6 });
+  }
+  function spark(x, y) {
+    add({ k: 'spark', x, y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, g: 0, life: 0.5 + Math.random() * 0.6, max: 1.1 });
+  }
+  function confetti(x, y, vx, vy) {
+    add({ k: 'conf', x, y, vx, vy, g: 90, life: 4, c: COLORS[(Math.random() * COLORS.length) | 0], ph: Math.random() * 6 });
+  }
+  function burst(cx = W / 2, cy = H * 0.55) {
+    for (let i = 0; i < 70; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.3;
+      const s = 90 + Math.random() * 150;
+      coin(cx + (Math.random() - 0.5) * 30, cy, Math.cos(a) * s, Math.sin(a) * s, 260);
+    }
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 140;
+      confetti(cx, cy, Math.cos(a) * s, Math.sin(a) * s - 60);
+    }
+    for (let i = 0; i < 24; i++) spark(cx + (Math.random() - 0.5) * 260, cy + (Math.random() - 0.5) * 120);
+  }
+  function sparkles(cx, cy, w, h, n = 14) {
+    for (let i = 0; i < n; i++) spark(cx + (Math.random() - 0.5) * w, cy + (Math.random() - 0.5) * h);
+  }
+  function rain(ms) { rainUntil = performance.now() + ms; start(); }
+  function clear() { parts.length = 0; rainUntil = 0; }
+
+  function start() {
+    if (raf) return;
+    last = performance.now();
+    raf = requestAnimationFrame(loop);
+  }
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (now < rainUntil) {
+      rainAcc += dt * 22;
+      while (rainAcc >= 1) {
+        rainAcc -= 1;
+        if (Math.random() < 0.7) coin(Math.random() * W, -10, (Math.random() - 0.5) * 20, 30 + Math.random() * 50, 50);
+        else confetti(Math.random() * W, -6, (Math.random() - 0.5) * 30, 20 + Math.random() * 30);
+      }
+    }
+    g.clearRect(0, 0, W, H);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.life -= dt;
+      p.vy += p.g * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.life <= 0 || p.y > H + 12) { parts.splice(i, 1); continue; }
+      const x = Math.round(p.x), y = Math.round(p.y);
+      if (p.k === 'coin') {
+        p.f = (p.f + dt * p.fs) % 8;
+        g.drawImage(coinFrames[p.f | 0], x - 4, y - 4);
+      } else if (p.k === 'conf') {
+        p.ph += dt * 8;
+        p.vx *= 0.99;
+        g.fillStyle = p.c;
+        g.fillRect(x, y, Math.sin(p.ph) > 0 ? 2 : 1, 2);
+      } else {
+        const s = Math.max(0, Math.round((p.life / p.max) * 3));
+        g.fillStyle = s > 1 ? '#fff8e0' : '#ffd35e';
+        g.fillRect(x - s, y, s * 2 + 1, 1);
+        g.fillRect(x, y - s, 1, s * 2 + 1);
+      }
+    }
+    if (parts.length || now < rainUntil) raf = requestAnimationFrame(loop);
+    else { raf = null; g.clearRect(0, 0, W, H); }
+  }
+  return { burst, sparkles, rain, clear };
+})();
+
+// ---------- animacja przebicia progu ----------
+function pxOutline(r, extrude, step, halo) {
+  const dark = [], light = [];
+  for (let dx = -(r + halo); dx <= r + halo; dx += step) {
+    for (let dy = -(r + halo); dy <= r + extrude + halo; dy += step) {
+      if (!dx && !dy) continue;
+      const ey = dy > 0 ? Math.max(0, dy - extrude) : dy;
+      const d = Math.max(Math.abs(dx), Math.abs(ey));
+      if (d <= r) dark.push(`${dx}px ${dy}px 0 var(--ink)`);
+      else if (d <= r + halo) light.push(`${dx}px ${dy}px 0 var(--cream)`);
+    }
+  }
+  return dark.concat(light).join(',');
+}
+$('aHead').querySelector('.sh').style.textShadow = pxOutline(10, 12, 5, 5);
+$('aNum').querySelector('.sh').style.textShadow = pxOutline(12, 14, 6, 6);
+$('aUnit').querySelector('.sh').style.textShadow = pxOutline(6, 6, 3, 3);
+
+function setPx(el, text) { el.querySelectorAll('span').forEach((s) => (s.textContent = text)); }
+function fitFont(el, basePx, maxWidth) {
+  el.style.fontSize = basePx + 'px';
+  const w = el.scrollWidth;
+  if (w > maxWidth) el.style.fontSize = Math.floor(basePx * (maxWidth / w)) + 'px';
+}
+function anim(el, frames, opts) { return el.animate(frames, Object.assign({ fill: 'forwards' }, opts)); }
+function shake(power, ms) {
+  const kf = [];
+  for (let i = 0; i < 8; i++) {
+    const k = power * (1 - i / 8);
+    kf.push({ transform: `translate(${Math.round((Math.random() - 0.5) * 2 * k)}px, ${Math.round((Math.random() - 0.5) * 2 * k)}px)` });
+  }
+  kf.push({ transform: 'translate(0,0)' });
+  $('aShaker').animate(kf, { duration: ms, easing: 'steps(1, end)' });
+}
+function countUp(el, a, b, ms) {
+  return new Promise((res) => {
+    const t0 = performance.now();
+    let shown = null, lastTick = 0;
+    const f = (now) => {
+      const p = Math.min(1, (now - t0) / ms);
+      const v = Math.round(a + (b - a) * (1 - Math.pow(1 - p, 3)));
+      if (v !== shown) {
+        setPx(el, WL.fmt(v));
+        shown = v;
+        if (now - lastTick > 65 && p < 1) { Sfx.tick(p); lastTick = now; }
+      }
+      if (p < 1) requestAnimationFrame(f); else res();
+    };
+    requestAnimationFrame(f);
+  });
+}
+
+const fontsReady = (document.fonts && document.fonts.ready) || Promise.resolve();
+
+async function playAlert(tier, from) {
+  if (playing) return false;
+  playing = true;
+  publishStatusSoon();
+  try {
+    await fontsReady;
+    const root = $('alert');
+    const els = ['aDim', 'aRays', 'aRaysSpin', 'aFlash', 'aShaker', 'aLogoWrap', 'aLogo', 'aHead', 'aCounter', 'aNum', 'aTag', 'aUl'].map($);
+    els.forEach((e) => e.getAnimations().forEach((a) => a.cancel()));
+    const [dim, rays, raysSpin, flash, , logoWrap, logo, head, counter, num, tag, ul] = els;
+
+    const fromVal = from != null && from < tier ? from : tier - cfg.step;
+    setPx(head, cfg.headline);
+    setPx(num, WL.fmt(fromVal));
+    setPx($('aUnit'), cfg.unitLabel);
+    $('aTagTxt').textContent = cfg.subtitle;
+    root.hidden = false;
+    fitFont(head, 110, 1700);
+    num.style.fontSize = '150px';
+    $('aUnit').style.fontSize = '54px';
+    const cw = $('aNum').scrollWidth + $('aUnit').scrollWidth + 36;
+    if (cw > 1700) {
+      const k = 1700 / cw;
+      num.style.fontSize = Math.floor(150 * k) + 'px';
+      $('aUnit').style.fontSize = Math.floor(54 * k) + 'px';
+    }
+    tag.style.fontSize = '74px';
+    if (tag.offsetWidth > 1700) tag.style.fontSize = Math.floor(74 * 1700 / tag.offsetWidth) + 'px';
+
+    Sfx.intro();
+    anim(dim, [{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
+    anim(rays, [{ opacity: 0, transform: 'scale(.2)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 800, easing: 'ease-out' });
+    raysSpin.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 24000, iterations: Infinity });
+    flash.animate([{ opacity: 0 }, { opacity: 0.85, offset: 0.25 }, { opacity: 0 }], { duration: 420 });
+    anim(logo, [
+      { opacity: 1, transform: 'translateY(-700px) scale(.7)' },
+      { opacity: 1, transform: 'translateY(24px) scale(1.05)', offset: 0.72 },
+      { opacity: 1, transform: 'translateY(0) scale(1)' },
+    ], { duration: 620, easing: 'cubic-bezier(.3,.9,.4,1)' });
+    await wait(470);
+    Sfx.thud();
+    shake(14, 260);
+
+    await wait(120);
+    anim(head, [
+      { opacity: 0, transform: 'scale(3.2)' },
+      { opacity: 1, transform: 'scale(.9)', offset: 0.7 },
+      { opacity: 1, transform: 'scale(1)' },
+    ], { duration: 360, easing: 'steps(7, end)' });
+    await wait(260);
+    Sfx.slam();
+    shake(22, 320);
+    FX.sparkles(240, 110, 300, 60, 16);
+
+    await wait(260);
+    anim(counter, [{ opacity: 0, transform: 'translateY(50px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 260, easing: 'steps(4, end)' });
+    await wait(200);
+    await countUp(num, fromVal, tier, 1500);
+
+    Sfx.fanfare();
+    FX.burst(240, 160);
+    shake(26, 420);
+    flash.animate([{ opacity: 0 }, { opacity: 0.6, offset: 0.2 }, { opacity: 0 }], { duration: 380 });
+    num.animate([{ transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'steps(6, end)' });
+
+    await wait(220);
+    anim(tag, [
+      { opacity: 0, transform: 'rotate(-14deg) scale(.3)' },
+      { opacity: 1, transform: 'rotate(1deg) scale(1.08)', offset: 0.7 },
+      { opacity: 1, transform: 'rotate(-2deg) scale(1)' },
+    ], { duration: 520, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+    anim(ul, [{ strokeDashoffset: 1000 }, { strokeDashoffset: 0 }], { duration: 450, delay: 420, easing: 'ease-out' });
+    logoWrap.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-10px)' }, { transform: 'translateY(0)' }],
+      { duration: 1200, iterations: Infinity, easing: 'steps(4, end)' });
+    FX.rain(3600);
+
+    await wait(4600);
+    Sfx.exit();
+    [logo, head, counter, tag].forEach((el, i) => {
+      anim(el, [
+        { transform: getComputedStyle(el).transform === 'none' ? 'none' : getComputedStyle(el).transform, opacity: 1 },
+        { transform: 'translateY(90px) scale(.85)', opacity: 0 },
+      ], { duration: 420, delay: i * 70, easing: 'steps(5, end)' });
+    });
+    anim(dim, [{ opacity: 1 }, { opacity: 0 }], { duration: 750, delay: 150 });
+    anim(rays, [{ opacity: 1 }, { opacity: 0 }], { duration: 600 });
+    await wait(950);
+    root.hidden = true;
+    els.forEach((e) => e.getAnimations().forEach((a) => a.cancel()));
+  } catch (e) {
+    console.error(e);
+    $('alert').hidden = true;
+  } finally {
+    playing = false;
+    renderWidget();
+    publishStatusSoon();
+  }
+  return true;
+}
+
+// ---------- komunikacja ----------
+let bus = null;
+let statusTimer = null;
+function statusPayload() {
+  const g = gate();
+  return {
+    t: 'status', v: VERSION, cfg, cfgTime,
+    st: {
+      raw: S.raw, total: total(), countTime: S.rawTime, today: S.today, yesterday: S.yesterday,
+      lastCelebrated: S.lastCelebrated, pending: S.pending, lastPlayed: S.lastPlayed,
+      playing, inOBS, streamKnown, streaming, streamStartedAt: S.streamStartedAt,
+      gate: { ok: g.ok, code: g.code, text: g.text, readyAt: g.readyAt || null },
+      preview: P.preview,
+    },
+  };
+}
+function publishStatusSoon(delay = 1200) {
+  if (!bus) return;
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => bus.publish(statusPayload()).catch((e) => console.warn('status', e)), delay);
+}
+
+function onMessage(m, meta) {
+  switch (m.t) {
+    case 'count': {
+      if (meta.time < S.rawTime || typeof m.raw !== 'number') return;
+      const changed = m.raw !== S.raw || JSON.stringify(m.today) !== JSON.stringify(S.today);
+      S.raw = m.raw;
+      S.rawTime = meta.time;
+      S.today = m.today || null;
+      S.yesterday = m.yesterday || null;
+      saveState();
+      evaluate();
+      renderWidget();
+      if (changed) publishStatusSoon();
+      break;
+    }
+    case 'config': {
+      if (meta.time <= cfgTime) return;
+      const old = cfg;
+      cfg = WL.normalizeConfig(m.cfg);
+      cfgTime = meta.time;
+      saveCfg();
+      if (old.step !== cfg.step || old.offset !== cfg.offset) rebaseline();
+      evaluate();
+      renderWidget();
+      publishStatusSoon();
+      break;
+    }
+    case 'cmd':
+      onCommand(m);
+      break;
+  }
+}
+
+function onCommand(m) {
+  const t = total();
+  switch (m.cmd) {
+    case 'ping':
+      publishStatusSoon(300);
+      break;
+    case 'test': {
+      const tier = Number(m.tier) || (t != null ? WL.tierOf(t, cfg.step) + cfg.step : cfg.step * 10);
+      Sfx.ensure();
+      playAlert(tier, tier - cfg.step);
+      break;
+    }
+    case 'replay':
+      if (S.lastPlayed) playAlert(S.lastPlayed.tier, S.lastPlayed.from);
+      break;
+    case 'play-pending':
+      playPending();
+      break;
+    case 'clear-pending':
+      if (S.pending != null) S.lastCelebrated = Math.max(S.lastCelebrated ?? S.pending, S.pending);
+      S.pending = null;
+      S.pendingFrom = null;
+      saveState();
+      publishStatusSoon(300);
+      break;
+    case 'reset':
+      S.lastCelebrated = t != null ? WL.tierOf(t, cfg.step) : null;
+      S.pending = null;
+      S.pendingFrom = null;
+      saveState();
+      publishStatusSoon(300);
+      break;
+    case 'reload':
+      location.reload();
+      break;
+  }
+}
+
+function renderInfo() {
+  const el = $('info');
+  if (!P.topic) {
+    el.hidden = false;
+    el.textContent = 'Brak tematu ntfy w adresie.\nDodaj na końcu URL: #topic=twoj-temat (skopiuj link z panelu).';
+    return;
+  }
+  if (!P.debug) { el.hidden = true; return; }
+  el.hidden = false;
+  const g = gate();
+  const up = S.streamStartedAt ? Math.floor((Date.now() - S.streamStartedAt) / 60000) + ' min' : '—';
+  el.textContent = [
+    `overlay v${VERSION}  ntfy: ${bus && bus.connected ? 'połączono' : 'łączę…'}  OBS: ${inOBS ? 'tak' : 'nie'}`,
+    `wishlisty: ${WL.fmt(total())} (steam ${WL.fmt(S.raw)} + korekta ${cfg.offset})  dziś: ${S.today ? S.today.adds : '—'}`,
+    `próg co ${cfg.step}  ostatnio świętowany: ${WL.fmt(S.lastCelebrated)}  w kolejce: ${WL.fmt(S.pending)}`,
+    `stream: ${streamKnown ? (streaming ? 'LIVE ' + up : 'offline') : 'nieznany'}  bramka: ${g.text}`,
+  ].join('\n');
+}
+
+// podgląd w zwykłej przeglądarce: dźwięk wymaga kliknięcia
+if (!inOBS) {
+  const b = $('soundBtn');
+  b.hidden = false;
+  b.onclick = () => { Sfx.ensure(); b.hidden = true; };
+}
+
+if (P.topic) {
+  bus = new WL.Bus({ server: P.server, topic: P.topic, onMessage, onState: () => renderInfo() });
+  bus.connect();
+  publishStatusSoon(3000);
+}
+renderWidget();
+renderInfo();
+setInterval(tick, 2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b0e06">
+<title>Game Keeper – panel wishlist</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #140a04;
+    --card: #22130a;
+    --card-2: #2d1a0d;
+    --line: #4a2c14;
+    --text: #fbe9d0;
+    --muted: #c4a582;
+    --orange: #f7a51c;
+    --orange-hi: #ffd35e;
+    --orange-lo: #e0730a;
+    --pink: #dc2a55;
+    --green: #4fd97a;
+    --red: #ff5d5d;
+    --yellow: #ffc93c;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    padding: max(12px, env(safe-area-inset-top)) 16px 40px; }
+  main { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
+  header { display: flex; align-items: center; gap: 12px; }
+  header img { width: 92px; height: auto; }
+  h1 { font: 13px/1.6 'Press Start 2P', monospace; margin: 0; color: var(--orange); }
+  h2 { font: 11px/1.6 'Press Start 2P', monospace; margin: 0 0 12px; color: var(--orange-hi); letter-spacing: .5px; }
+  .card { background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--card-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 13px; color: var(--muted); }
+  .chip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #6b5440; }
+  .chip.ok::before { background: var(--green); }
+  .chip.warn::before { background: var(--yellow); }
+  .chip.bad::before { background: var(--red); }
+  .chip.live { color: #fff; border-color: #7a1830; background: #3a0d18; }
+  .chip.live::before { background: #ff3355; animation: pulse 1s steps(2) infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  .big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .big .n { font: 30px/1.2 'Press Start 2P', monospace; color: var(--orange); }
+  .big .u { color: var(--muted); }
+  .sub { color: var(--muted); font-size: 14px; }
+  .sub b { color: var(--text); font-weight: 600; }
+  .bar { height: 18px; background: #3a200d; border-radius: 4px; overflow: hidden; margin: 12px 0 6px; box-shadow: inset 0 0 0 2px #4d2c12; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(180deg, var(--orange-hi), var(--orange) 50%, var(--orange-lo)); transition: width .6s; }
+  .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  .queue { border-color: #7a4a10; background: #2e1b06; }
+  .queue .n { font: 18px/1.4 'Press Start 2P', monospace; color: var(--orange-hi); }
+
+  .grid { display: grid; gap: 12px; }
+  @media (min-width: 560px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+  label.f { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+  label.f .hint { font-size: 12px; color: #9c8165; }
+  input[type=number], input[type=text], select {
+    width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--text); background: var(--card-2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  input:focus, select:focus { outline: 2px solid var(--orange); outline-offset: 1px; }
+  input[type=range] { width: 100%; accent-color: var(--orange); }
+  .check { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 15px; cursor: pointer; }
+  .check input { width: 22px; height: 22px; accent-color: var(--orange); flex: none; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  button { font: 600 15px system-ui, -apple-system, 'Segoe UI', sans-serif; border: 0; border-radius: 10px; padding: 12px 14px; cursor: pointer;
+    background: var(--card-2); color: var(--text); border: 1px solid var(--line); min-height: 44px; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--orange); color: #1b0e06; border-color: var(--orange); }
+  button.pink { background: var(--pink); color: #fff; border-color: var(--pink); }
+  button.small { padding: 6px 10px; min-height: 34px; font-size: 13px; }
+  button:disabled { opacity: .45; cursor: default; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btns > * { flex: 1 1 auto; }
+  .inline { display: flex; gap: 8px; }
+  .inline input { flex: 1; }
+
+  .save { font-size: 13px; color: var(--muted); min-height: 18px; }
+  .save.ok { color: var(--green); }
+  .save.bad { color: var(--red); }
+  code, .mono { font: 12.5px/1.5 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+  .copy { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 8px 8px 12px; }
+  details > summary { cursor: pointer; color: var(--muted); list-style: none; }
+  details > summary::before { content: '▸ '; }
+  details[open] > summary::before { content: '▾ '; }
+  .warn-box { font-size: 13px; color: #ffcf8a; background: #33200a; border: 1px solid #6b4413; border-radius: 8px; padding: 8px 10px; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #000d; color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.on { opacity: 1; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="logo.png" alt="Game Keeper">
+    <div>
+      <h1>WISHLIST PANEL</h1>
+      <div class="chips" id="chips"></div>
+    </div>
+  </header>
+
+  <!-- pierwsze uruchomienie -->
+  <section class="card" id="setup" hidden>
+    <h2>START</h2>
+    <p>Panel, overlay i poller rozmawiają przez prywatny kanał na ntfy.sh. Wygeneruj nowy albo wpisz istniejący.</p>
+    <div class="grid">
+      <button class="primary" id="genTopic">Wygeneruj nowy kanał</button>
+      <div class="inline"><input type="text" id="topicInput" placeholder="gk-wishlist-…" autocomplete="off"><button id="useTopic">Użyj</button></div>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <section class="card">
+      <h2>WISHLISTY</h2>
+      <div class="big"><span class="n" id="total">—</span><span class="u">wishlist</span></div>
+      <div class="sub" id="totalSub"></div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="row sub"><span id="nextTxt"></span><span id="leftTxt"></span></div>
+      <div class="sub" style="margin-top:8px" id="lastTxt"></div>
+    </section>
+
+    <section class="card queue" id="queueCard" hidden>
+      <h2>W KOLEJCE</h2>
+      <div class="n" id="qTier"></div>
+      <div class="sub" id="qGate" style="margin:6px 0 12px"></div>
+      <div class="btns">
+        <button class="primary" data-cmd="play-pending">Odpal teraz</button>
+        <button data-cmd="clear-pending" data-confirm="Pominąć ten próg bez animacji?">Pomiń</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>AKCJE</h2>
+      <div class="grid">
+        <div class="inline">
+          <input type="number" id="testTier" inputmode="numeric" placeholder="próg">
+          <button class="pink" id="testBtn">▶ Test animacji</button>
+        </div>
+        <div class="btns">
+          <button data-cmd="replay">Powtórz ostatnią</button>
+          <button data-cmd="reset" data-confirm="Uznać obecny próg za zaliczony? Animacja poleci dopiero przy następnym.">Oznacz obecny próg jako zaliczony</button>
+          <button data-cmd="reload">Przeładuj overlay</button>
+        </div>
+        <div class="sub">Test i „Odpal teraz” pomijają warunki (stream, minimalny czas). Test nie zmienia stanu progów.</div>
+      </div>
+    </section>
+
+    <form id="cfgForm" class="grid" autocomplete="off" onsubmit="return false">
+      <section class="card">
+        <h2>PROGI</h2>
+        <div class="grid">
+          <label class="f">Próg co ile wishlist
+            <input type="number" name="step" min="1" step="1" inputmode="numeric">
+            <div class="presets">
+              <button type="button" class="small" data-step="50">50</button>
+              <button type="button" class="small" data-step="100">100</button>
+              <button type="button" class="small" data-step="250">250</button>
+              <button type="button" class="small" data-step="500">500</button>
+              <button type="button" class="small" data-step="1000">1000</button>
+            </div>
+          </label>
+          <label class="f">Minimalny czas streama przed animacją (minuty)
+            <input type="number" name="minUptimeMin" min="0" step="1" inputmode="numeric">
+            <span class="hint">Próg przebity wcześniej albo poza streamem czeka w kolejce, aż stream potrwa tyle minut.</span>
+          </label>
+          <label class="check"><input type="checkbox" name="requireStream"> Odpalaj tylko, gdy OBS streamuje</label>
+          <label class="check"><input type="checkbox" name="alertsEnabled"> Animacje włączone <span class="sub">(wyłączone = kolejka czeka)</span></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>WIDGET NA STREAMIE</h2>
+        <div class="grid two">
+          <label class="check"><input type="checkbox" name="showBar"> Pasek postępu do progu</label>
+          <label class="check"><input type="checkbox" name="showToday"> Licznik „+X dziś”</label>
+          <label class="f">Pozycja
+            <select name="widgetPos">
+              <option value="top-right">Prawy górny róg</option>
+              <option value="top-left">Lewy górny róg</option>
+              <option value="bottom-right">Prawy dolny róg</option>
+              <option value="bottom-left">Lewy dolny róg</option>
+              <option value="top-center">Góra, środek</option>
+              <option value="bottom-center">Dół, środek</option>
+            </select>
+          </label>
+          <label class="f">Rozmiar <span class="hint" id="scaleVal"></span>
+            <input type="range" name="widgetScale" min="0.5" max="2" step="0.05">
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>TEKSTY I DŹWIĘK</h2>
+        <div class="grid two">
+          <label class="f">Nagłówek animacji <input type="text" name="headline" maxlength="40"></label>
+          <label class="f">Podtytuł (karteczka) <input type="text" name="subtitle" maxlength="60"></label>
+          <label class="f">Jednostka przy liczbie <input type="text" name="unitLabel" maxlength="20"></label>
+          <label class="f">Tytuł widgetu <input type="text" name="widgetTitle" maxlength="20"></label>
+          <label class="f">Głośność <span class="hint" id="volVal"></span>
+            <input type="range" name="volume" min="0" max="1" step="0.05">
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>KOREKTA</h2>
+        <label class="f">Korekta licznika (+/−)
+          <input type="number" name="offset" step="1" inputmode="numeric">
+          <span class="hint">Jeśli liczba z API różni się od tej w Steamworks, wpisz różnicę. Zmiana korekty nie odpala animacji wstecz.</span>
+        </label>
+      </section>
+    </form>
+    <div class="save" id="saveState"></div>
+
+    <section class="card">
+      <details>
+        <summary>Awaryjnie: wyślij liczbę ręcznie</summary>
+        <div class="grid" style="margin-top:12px">
+          <div class="warn-box">Użyj, gdy poller nie działa. Liczba z pollera (co najmniej raz na godzinę) nadpisze tę ręczną. Przebity próg zostaje zaliczony, nawet jeśli potem liczba spadnie.</div>
+          <div class="inline"><input type="number" id="manualCount" inputmode="numeric" placeholder="np. 8432"><button id="manualBtn">Wyślij</button></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary>Połączenie i linki</summary>
+        <div class="grid" style="margin-top:12px">
+          <label class="f">Link do OBS (Browser Source, 1920×1080)
+            <div class="copy"><span class="mono" id="obsUrl"></span><button class="small" data-copy="obsUrl">Kopiuj</button></div>
+          </label>
+          <label class="f">Link do tego panelu (zapisz w telefonie)
+            <div class="copy"><span class="mono" id="panelUrl"></span><button class="small" data-copy="panelUrl">Kopiuj</button></div>
+          </label>
+          <label class="f">Kanał dla pollera (<code>ntfyTopic</code> w config.json)
+            <div class="copy"><span class="mono" id="topicTxt"></span><button class="small" data-copy="topicTxt">Kopiuj</button></div>
+          </label>
+          <div class="sub">Link działa jak hasło: kto go zna, może odpalać animacje. Nie pokazuj go na streamie.</div>
+          <button id="changeTopic">Zmień kanał</button>
+        </div>
+      </details>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="common.js"></script>
+<script>
+'use strict';
+const P = WL.readParams();
+const $ = (id) => document.getElementById(id);
+const form = $('cfgForm');
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('on'), 2200);
+}
+function ago(ms) {
+  if (!ms) return '—';
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return `${s} s temu`;
+  if (s < 3600) return `${Math.floor(s / 60)} min temu`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min temu`;
+  return `${Math.floor(s / 86400)} d temu`;
+}
+function hms(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
+}
+function clock(ms) { return new Date(ms).toLocaleString('pl-PL', { weekday: 'short', hour: '2-digit', minute: '2-digit' }); }
+
+// ---------- pierwsze uruchomienie ----------
+function setTopic(topic) {
+  const h = new URLSearchParams(location.hash.slice(1));
+  h.set('topic', topic.trim());
+  location.hash = h.toString();
+  location.reload();
+}
+if (!P.topic) {
+  $('setup').hidden = false;
+  $('genTopic').onclick = () => setTopic(WL.randomTopic());
+  $('useTopic').onclick = () => $('topicInput').value.trim() && setTopic($('topicInput').value);
+} else {
+  $('app').hidden = false;
+  start();
+}
+
+function start() {
+  const KEY_LOCAL = `wl.panel.${P.topic}`;
+  const serverPart = P.server !== 'https://ntfy.sh' ? `&server=${encodeURIComponent(P.server)}` : '';
+  const obsUrl = new URL('overlay.html', location.href);
+  obsUrl.hash = `topic=${encodeURIComponent(P.topic)}${serverPart}`;
+  $('obsUrl').textContent = obsUrl.href;
+  $('panelUrl').textContent = location.href;
+  $('topicTxt').textContent = P.topic;
+
+  const R = {
+    cfg: null, cfgTime: 0,
+    status: null, statusTime: 0,
+    count: null, countTime: 0,
+    poller: null, pollerTime: 0,
+    connected: false,
+  };
+  const saved = WL.store.get(KEY_LOCAL, null);
+  if (saved && saved.cfg) { R.cfg = WL.normalizeConfig(saved.cfg); }
+  let dirty = false;
+  let sentAt = 0;
+  let sendTimer = null;
+
+  const bus = new WL.Bus({
+    server: P.server,
+    topic: P.topic,
+    onState: (s) => { R.connected = s === 'open'; if (R.connected) ping(); render(); },
+    onMessage,
+  });
+  bus.connect();
+
+  function takeCfg(cfg, time) {
+    if (time <= R.cfgTime) return;
+    R.cfg = WL.normalizeConfig(cfg);
+    R.cfgTime = time;
+    WL.store.set(KEY_LOCAL, { cfg: R.cfg });
+    if (!dirty) fillForm(R.cfg);
+  }
+
+  function onMessage(m, meta) {
+    switch (m.t) {
+      case 'config': takeCfg(m.cfg, meta.time); break;
+      case 'status':
+        if (meta.time >= R.statusTime) { R.status = m; R.statusTime = meta.time; }
+        if (m.cfg && m.cfgTime) takeCfg(m.cfg, m.cfgTime);
+        if (m.st && typeof m.st.raw === 'number' && m.st.countTime > R.countTime) {
+          R.count = { raw: m.st.raw, today: m.st.today, yesterday: m.st.yesterday };
+          R.countTime = m.st.countTime;
+        }
+        break;
+      case 'count':
+        if (meta.time >= R.countTime) { R.count = m; R.countTime = meta.time; }
+        break;
+      case 'poller':
+        if (meta.time >= R.pollerTime) { R.poller = m; R.pollerTime = meta.time; }
+        break;
+    }
+    render();
+  }
+
+  // ---------- formularz ----------
+  function fillForm(cfg) {
+    for (const el of form.elements) {
+      if (!el.name || !(el.name in cfg) || el === document.activeElement) continue;
+      if (el.type === 'checkbox') el.checked = !!cfg[el.name];
+      else el.value = cfg[el.name];
+    }
+    updateLabels();
+  }
+  function readForm() {
+    const c = Object.assign({}, R.cfg || WL.DEFAULT_CONFIG);
+    for (const el of form.elements) {
+      if (!el.name) continue;
+      if (el.type === 'checkbox') c[el.name] = el.checked;
+      else if (el.type === 'number' || el.type === 'range') { if (el.value !== '') c[el.name] = Number(el.value); }
+      else c[el.name] = el.value;
+    }
+    return WL.normalizeConfig(c);
+  }
+  function updateLabels() {
+    $('scaleVal').textContent = Math.round(Number(form.elements.widgetScale.value) * 100) + '%';
+    $('volVal').textContent = Math.round(Number(form.elements.volume.value) * 100) + '%';
+  }
+  function setSave(text, cls) { const s = $('saveState'); s.textContent = text; s.className = 'save ' + (cls || ''); }
+
+  form.addEventListener('input', () => {
+    dirty = true;
+    updateLabels();
+    setSave('Zmiany niewysłane…');
+    clearTimeout(sendTimer);
+    sendTimer = setTimeout(sendConfig, 800);
+  });
+  form.addEventListener('change', () => { clearTimeout(sendTimer); sendTimer = setTimeout(sendConfig, 300); });
+  form.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => {
+    form.elements.step.value = b.dataset.step;
+    form.dispatchEvent(new Event('input'));
+  }));
+
+  async function sendConfig() {
+    const cfg = readForm();
+    setSave('Wysyłam…');
+    try {
+      const res = await bus.publish({ t: 'config', cfg });
+      sentAt = res.time * 1000;
+      dirty = false;
+      WL.store.set(KEY_LOCAL, { cfg });
+      setSave('Wysłano – czekam na potwierdzenie overlaya…');
+    } catch (e) {
+      setSave('Nie udało się wysłać: ' + e.message, 'bad');
+    }
+  }
+
+  // ---------- polecenia ----------
+  const CMD_LABEL = {
+    test: 'Test animacji', replay: 'Powtórka', 'play-pending': 'Odpalam kolejkę', 'clear-pending': 'Próg pominięty',
+    reset: 'Obecny próg zaliczony', reload: 'Przeładowuję overlay',
+  };
+  async function cmd(name, extra) {
+    try {
+      await bus.publish(Object.assign({ t: 'cmd', cmd: name }, extra || {}), { cache: false });
+      toast((CMD_LABEL[name] || name) + ' – wysłano');
+      if (name !== 'ping') setTimeout(ping, 1500);
+    } catch (e) {
+      toast('Błąd: ' + e.message);
+    }
+  }
+  function ping() { bus.publish({ t: 'cmd', cmd: 'ping' }, { cache: false }).catch(() => {}); }
+  document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.confirm && !confirm(b.dataset.confirm)) return;
+    cmd(b.dataset.cmd);
+  }));
+  $('testBtn').onclick = () => cmd('test', { tier: Number($('testTier').value) || null });
+  $('manualBtn').onclick = async () => {
+    const n = Number($('manualCount').value);
+    if (!Number.isFinite(n) || $('manualCount').value === '') return toast('Wpisz liczbę');
+    if (!confirm(`Wysłać ręcznie liczbę wishlist z API: ${WL.fmt(n)}? (bez korekty)`)) return;
+    try {
+      await bus.publish({ t: 'count', raw: Math.round(n), today: null, yesterday: null, source: 'manual', checkedAt: Date.now() });
+      toast('Wysłano liczbę');
+    } catch (e) { toast('Błąd: ' + e.message); }
+  };
+  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+    const text = $(b.dataset.copy).textContent;
+    try { await navigator.clipboard.writeText(text); toast('Skopiowano'); }
+    catch (e) { prompt('Skopiuj:', text); }
+  }));
+  $('changeTopic').onclick = () => {
+    const t = prompt('Nowy kanał (puste = wygeneruj):', '');
+    if (t === null) return;
+    if (confirm('Po zmianie kanału musisz podmienić link w OBS i ntfyTopic w pollerze. Kontynuować?')) setTopic(t.trim() || WL.randomTopic());
+  };
+
+  setInterval(() => { if (document.visibilityState === 'visible' && R.connected) ping(); }, 3 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && R.connected) ping(); });
+  setInterval(render, 1000);
+
+  if (R.cfg) fillForm(R.cfg); else fillForm(WL.DEFAULT_CONFIG);
+
+  // ---------- render ----------
+  function chip(text, cls) { return `<span class="chip ${cls}">${text}</span>`; }
+  function render() {
+    const cfg = R.cfg || WL.DEFAULT_CONFIG;
+    const st = R.status && R.status.st;
+    const overlayFresh = R.statusTime && Date.now() - R.statusTime < 4.5 * 60 * 1000;
+    const chips = [];
+    chips.push(chip(R.connected ? 'ntfy' : 'ntfy: łączę…', R.connected ? 'ok' : 'bad'));
+    chips.push(chip(overlayFresh ? 'Overlay online' : (R.statusTime ? 'Overlay: ' + ago(R.statusTime) : 'Overlay: brak'), overlayFresh ? 'ok' : 'bad'));
+    const pollerErr = R.poller && R.poller.ok === false && R.pollerTime >= R.countTime;
+    const pollerLast = R.count && R.count.source !== 'manual' ? (R.count.checkedAt || R.countTime) : 0;
+    const pollerOk = pollerLast && Date.now() - pollerLast < 75 * 60 * 1000;
+    chips.push(chip(pollerErr ? 'Poller: błąd' : pollerLast ? 'Steam: ' + ago(pollerLast) : 'Poller: brak danych', pollerErr ? 'bad' : pollerOk ? 'ok' : 'warn'));
+    if (st && overlayFresh) {
+      if (!st.streamKnown) chips.push(chip(st.inOBS ? 'Stream: brak uprawnień OBS' : 'Poza OBS', 'warn'));
+      else if (st.streaming) chips.push(chip('LIVE ' + (st.streamStartedAt ? hms(Date.now() - st.streamStartedAt) : ''), 'live'));
+      else chips.push(chip('Stream offline', ''));
+      if (st.playing) chips.push(chip('Animacja leci…', 'ok'));
+    }
+    $('chips').innerHTML = chips.join('');
+
+    // liczniki
+    const raw = R.count ? R.count.raw : null;
+    const total = raw == null ? null : raw + cfg.offset;
+    $('total').textContent = WL.fmt(total);
+    const parts = [];
+    if (raw != null) parts.push(`Steam: <b>${WL.fmt(raw)}</b>${cfg.offset ? ` ${cfg.offset > 0 ? '+' : '−'} korekta ${WL.fmt(Math.abs(cfg.offset))}` : ''}`);
+    if (R.count && R.count.today) parts.push(`dziś <b>+${WL.fmt(R.count.today.adds)}</b>`);
+    if (R.count && R.count.yesterday) parts.push(`wczoraj <b>+${WL.fmt(R.count.yesterday.adds)}</b>`);
+    if (R.count && R.count.source === 'manual') parts.push('<b>(ręcznie)</b>');
+    if (pollerErr) parts.push(`<span style="color:var(--red)">Poller: ${escapeHtml(R.poller.error || 'błąd')}</span>`);
+    $('totalSub').innerHTML = parts.join(' · ') || 'Czekam na dane z pollera…';
+    if (total != null) {
+      const prev = WL.tierOf(total, cfg.step), next = prev + cfg.step;
+      $('bar').style.width = ((total - prev) / cfg.step) * 100 + '%';
+      $('nextTxt').innerHTML = `Następny próg: <b>${WL.fmt(next)}</b>`;
+      $('leftTxt').innerHTML = `brakuje <b>${WL.fmt(next - total)}</b>`;
+      $('testTier').placeholder = String(next);
+    }
+    const lp = st && st.lastPlayed;
+    $('lastTxt').innerHTML = st
+      ? `Ostatnio zaliczony próg: <b>${WL.fmt(st.lastCelebrated)}</b>${lp ? ` · animacja ${WL.fmt(lp.tier)} (${clock(lp.at)})` : ''}`
+      : '';
+
+    // kolejka
+    const pending = st && st.pending;
+    $('queueCard').hidden = pending == null;
+    if (pending != null) {
+      $('qTier').textContent = WL.fmt(pending) + ' ' + cfg.unitLabel;
+      let g = st.gate ? st.gate.text : '';
+      if (st.gate && st.gate.code === 'uptime' && st.gate.readyAt) g += ` · poleci za ${hms(st.gate.readyAt - Date.now())}`;
+      if (st.gate && st.gate.ok) g = 'Leci za chwilę…';
+      $('qGate').textContent = g;
+    }
+
+    // potwierdzenie zapisu
+    if (sentAt && R.status && R.status.cfgTime >= sentAt && !dirty) {
+      setSave('Overlay potwierdził zmiany ✓', 'ok');
+      sentAt = 0;
+    }
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+  render();
+}
+</script>
+</body>
+</html>
