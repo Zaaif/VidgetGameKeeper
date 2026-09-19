@@ -177,6 +177,30 @@
       </section>
 
       <section class="card">
+        <h2>ANIMACJA PROGU</h2>
+        <div class="grid two">
+          <label class="f">Gdzie na ekranie
+            <select name="alertPos">
+              <option value="center">Środek ekranu</option>
+              <option value="top-right">Prawy górny róg</option>
+              <option value="top-left">Lewy górny róg</option>
+              <option value="bottom-right">Prawy dolny róg</option>
+              <option value="bottom-left">Lewy dolny róg</option>
+              <option value="top-center">Góra, środek</option>
+              <option value="bottom-center">Dół, środek</option>
+            </select>
+          </label>
+          <label class="f">Rozmiar <span class="hint" id="alertScaleVal"></span>
+            <input type="range" name="alertScale" min="0.25" max="1" step="0.05">
+          </label>
+        </div>
+        <div class="btns" style="margin-top:12px">
+          <button type="button" class="pink" id="previewBtn">▶ Podgląd na streamie</button>
+        </div>
+        <div class="sub" style="margin-top:6px">100% = cały ekran. W rogu najlepiej wygląda 35–50%.</div>
+      </section>
+
+      <section class="card">
         <h2>WIDGET NA STREAMIE</h2>
         <div class="grid two">
           <label class="check"><input type="checkbox" name="showBar"> Pasek postępu do progu</label>
@@ -378,6 +402,7 @@ function start() {
   function updateLabels() {
     $('scaleVal').textContent = Math.round(Number(form.elements.widgetScale.value) * 100) + '%';
     $('volVal').textContent = Math.round(Number(form.elements.volume.value) * 100) + '%';
+    $('alertScaleVal').textContent = Math.round(Number(form.elements.alertScale.value) * 100) + '%';
   }
   function setSave(text, cls) { const s = $('saveState'); s.textContent = text; s.className = 'save ' + (cls || ''); }
 
@@ -428,6 +453,11 @@ function start() {
     cmd(b.dataset.cmd);
   }));
   $('testBtn').onclick = () => cmd('test', { tier: Number($('testTier').value) || null });
+  // podgląd po zmianie pozycji: najpierw wyślij niezapisane ustawienia, potem test
+  $('previewBtn').onclick = async () => {
+    if (dirty) { clearTimeout(sendTimer); await sendConfig(); }
+    cmd('test');
+  };
   $('manualBtn').onclick = async () => {
     const n = Number($('manualCount').value);
     if (!Number.isFinite(n) || $('manualCount').value === '') return toast('Wpisz liczbę');

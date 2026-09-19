@@ -19,6 +19,9 @@
     showToday: true,        // „+123 dziś”
     widgetPos: 'top-right',
     widgetScale: 1,
+    alertPos: 'center',     // gdzie leci animacja progu
+    alertScale: 1,          // 1 = cały ekran
+
     offset: 0,              // korekta względem Steamworks
     volume: 0.6,
     headline: 'LEVEL UP!',
@@ -26,6 +29,8 @@
     unitLabel: 'WISHLIST',
     widgetTitle: 'WISHLISTY',
   };
+
+  const POSITIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
 
   function normalizeConfig(cfg) {
     const c = Object.assign({}, DEFAULT_CONFIG, cfg || {});
@@ -35,8 +40,11 @@
     c.volume = Math.min(1, Math.max(0, Number(c.volume)));
     if (!Number.isFinite(c.volume)) c.volume = DEFAULT_CONFIG.volume;
     c.widgetScale = Math.min(3, Math.max(0.3, Number(c.widgetScale) || 1));
+    c.alertScale = Math.min(1.2, Math.max(0.25, Number(c.alertScale) || 1));
     for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday']) c[k] = !!c[k];
-    for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle', 'widgetPos']) c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
+    for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle']) c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
+    if (!POSITIONS.includes(c.widgetPos)) c.widgetPos = DEFAULT_CONFIG.widgetPos;
+    if (!POSITIONS.includes(c.alertPos) && c.alertPos !== 'center') c.alertPos = DEFAULT_CONFIG.alertPos;
     return c;
   }
 
