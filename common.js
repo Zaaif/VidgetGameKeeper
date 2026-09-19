@@ -21,7 +21,7 @@
     widgetScale: 1,
     alertPos: 'center',     // gdzie leci animacja progu
     alertScale: 1,          // 1 = cały ekran
-
+    logoScale: 1,           // wielkość loga względem reszty animacji
     offset: 0,              // korekta względem Steamworks
     volume: 0.6,
     headline: 'LEVEL UP!',
@@ -41,6 +41,7 @@
     if (!Number.isFinite(c.volume)) c.volume = DEFAULT_CONFIG.volume;
     c.widgetScale = Math.min(3, Math.max(0.3, Number(c.widgetScale) || 1));
     c.alertScale = Math.min(1.2, Math.max(0.25, Number(c.alertScale) || 1));
+    c.logoScale = Math.min(2.5, Math.max(0.5, Number(c.logoScale) || 1));
     for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday']) c[k] = !!c[k];
     for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle']) c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
     if (!POSITIONS.includes(c.widgetPos)) c.widgetPos = DEFAULT_CONFIG.widgetPos;

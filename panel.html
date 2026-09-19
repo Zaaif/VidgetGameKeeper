@@ -190,14 +190,17 @@
               <option value="bottom-center">Dół, środek</option>
             </select>
           </label>
-          <label class="f">Rozmiar <span class="hint" id="alertScaleVal"></span>
+          <label class="f">Rozmiar całości <span class="hint" id="alertScaleVal"></span>
             <input type="range" name="alertScale" min="0.25" max="1" step="0.05">
+          </label>
+          <label class="f">Wielkość loga <span class="hint" id="logoScaleVal"></span>
+            <input type="range" name="logoScale" min="0.5" max="2.5" step="0.1">
           </label>
         </div>
         <div class="btns" style="margin-top:12px">
           <button type="button" class="pink" id="previewBtn">▶ Podgląd na streamie</button>
         </div>
-        <div class="sub" style="margin-top:6px">100% = cały ekran. W rogu najlepiej wygląda 35–50%.</div>
+        <div class="sub" style="margin-top:6px">Rozmiar całości 100% = cały ekran, w rogu najlepiej wygląda 35–50%. Wielkość loga powiększa samo logo względem napisów.</div>
       </section>
 
       <section class="card">
@@ -403,6 +406,7 @@ function start() {
     $('scaleVal').textContent = Math.round(Number(form.elements.widgetScale.value) * 100) + '%';
     $('volVal').textContent = Math.round(Number(form.elements.volume.value) * 100) + '%';
     $('alertScaleVal').textContent = Math.round(Number(form.elements.alertScale.value) * 100) + '%';
+    $('logoScaleVal').textContent = Math.round(Number(form.elements.logoScale.value) * 100) + '%';
   }
   function setSave(text, cls) { const s = $('saveState'); s.textContent = text; s.className = 'save ' + (cls || ''); }
 
