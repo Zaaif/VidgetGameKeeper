@@ -229,7 +229,10 @@ function gate() {
 let lastGateCode = null;
 function tick() {
   const g = gate();
-  if (g.code !== lastGateCode) { lastGateCode = g.code; publishStatusSoon(); }
+  if (g.code !== lastGateCode) {
+    lastGateCode = g.code;
+    if (S.pending != null) publishStatusSoon();
+  }
   if (S.pending != null && !playing && g.ok) playPending();
   renderInfo();
 }
@@ -738,6 +741,8 @@ async function playAlert(tier, from) {
 // ---------- komunikacja ----------
 let bus = null;
 let statusTimer = null;
+let lastStatusAt = 0;
+const STATUS_MIN_GAP = 45000;
 function statusPayload() {
   const g = gate();
   return {
@@ -753,8 +758,12 @@ function statusPayload() {
 }
 function publishStatusSoon(delay = 1200) {
   if (!bus) return;
+  const wait = Math.max(delay, STATUS_MIN_GAP - (Date.now() - lastStatusAt));
   clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => bus.publish(statusPayload()).catch((e) => console.warn('status', e)), delay);
+  statusTimer = setTimeout(() => {
+    lastStatusAt = Date.now();
+    bus.publish(statusPayload()).catch((e) => console.warn('status', e));
+  }, wait);
 }
 
 function onMessage(m, meta) {

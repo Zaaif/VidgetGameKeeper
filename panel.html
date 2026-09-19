@@ -446,17 +446,24 @@ function start() {
     form.dispatchEvent(new Event('input'));
   }));
 
+  let lastSentCfg = null;
   async function sendConfig() {
     const cfg = readForm();
+    if (lastSentCfg === JSON.stringify(cfg) || (R.cfg && JSON.stringify(R.cfg) === JSON.stringify(cfg))) {
+      dirty = false;
+      setSave('Bez zmian', 'ok');
+      return;
+    }
     setSave('Wysyłam…');
     try {
       const res = await bus.publish({ t: 'config', cfg });
       sentAt = res.time * 1000;
+      lastSentCfg = JSON.stringify(cfg);
       dirty = false;
       WL.store.set(KEY_LOCAL, { cfg });
       setSave('Wysłano – czekam na potwierdzenie overlaya…');
     } catch (e) {
-      setSave('Nie udało się wysłać: ' + e.message, 'bad');
+      setSave(e.message.includes('429') ? 'Limit ntfy na dziś wyczerpany – zmiany niewysłane' : 'Nie udało się wysłać: ' + e.message, 'bad');
     }
   }
 
@@ -471,7 +478,7 @@ function start() {
       toast((CMD_LABEL[name] || name) + ' – wysłano');
       if (name !== 'ping') setTimeout(ping, 1500);
     } catch (e) {
-      toast('Błąd: ' + e.message);
+      toast(e.message.includes('429') ? 'Limit ntfy na dziś wyczerpany' : 'Błąd: ' + e.message);
     }
   }
   function ping() { bus.publish({ t: 'cmd', cmd: 'ping' }, { cache: false }).catch(() => {}); }
@@ -505,8 +512,10 @@ function start() {
     if (confirm('Po zmianie kanału musisz podmienić link w OBS i ntfyTopic w pollerze. Kontynuować?')) setTopic(t.trim() || WL.randomTopic());
   };
 
-  setInterval(() => { if (document.visibilityState === 'visible' && R.connected) ping(); }, 3 * 60 * 1000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && R.connected) ping(); });
+  // ntfy.sh ma 250 wiadomości dziennie na IP, więc odpytujemy overlay oszczędnie
+  const pingIfStale = (maxAge) => { if (document.visibilityState === 'visible' && R.connected && Date.now() - R.statusTime > maxAge) ping(); };
+  setInterval(() => pingIfStale(15 * 60 * 1000), 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => pingIfStale(2 * 60 * 1000));
   setInterval(render, 1000);
 
   if (R.cfg) fillForm(R.cfg); else fillForm(WL.DEFAULT_CONFIG);
@@ -516,13 +525,13 @@ function start() {
   function render() {
     const cfg = R.cfg || WL.DEFAULT_CONFIG;
     const st = R.status && R.status.st;
-    const overlayFresh = R.statusTime && Date.now() - R.statusTime < 4.5 * 60 * 1000;
+    const overlayFresh = R.statusTime && Date.now() - R.statusTime < 20 * 60 * 1000;
     const chips = [];
     chips.push(chip(R.connected ? 'ntfy' : 'ntfy: łączę…', R.connected ? 'ok' : 'bad'));
     chips.push(chip(overlayFresh ? 'Overlay online' : (R.statusTime ? 'Overlay: ' + ago(R.statusTime) : 'Overlay: brak'), overlayFresh ? 'ok' : 'bad'));
     const pollerErr = R.poller && R.poller.ok === false && R.pollerTime >= R.countTime;
     const pollerLast = R.count && R.count.source !== 'manual' ? (R.count.checkedAt || R.countTime) : 0;
-    const pollerOk = pollerLast && Date.now() - pollerLast < 75 * 60 * 1000;
+    const pollerOk = pollerLast && Date.now() - pollerLast < 200 * 60 * 1000;
     chips.push(chip(pollerErr ? 'Poller: błąd' : pollerLast ? 'Steam: ' + ago(pollerLast) : 'Poller: brak danych', pollerErr ? 'bad' : pollerOk ? 'ok' : 'warn'));
     if (st && overlayFresh) {
       if (!st.streamKnown) chips.push(chip(st.inOBS ? 'Stream: brak uprawnień OBS' : 'Poza OBS', 'warn'));
