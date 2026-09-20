@@ -23,6 +23,9 @@
     widgetX: 0,             // przesunięcie względem rogu: + w prawo
     widgetY: 0,             // + w dół
     goals: [],              // [{n: 5000, text: 'nowa gra na streamie'}] – przewijają się w widgecie
+    goalAlertEnabled: true, // animacja po zdobyciu celu
+    goalAlertLabel: 'CEL ZDOBYTY!',
+    goalAlertStamp: 'ZROBIONE',
     barSeconds: 60,         // jak długo widać pasek postępu
     goalSeconds: 10,        // jak długo widać jeden cel
     todayPos: 'below',      // gdzie licznik „+X dziś” względem paska
@@ -52,8 +55,10 @@
     c.widgetY = Math.max(-1060, Math.min(1060, Math.round(Number(c.widgetY) || 0)));
     c.alertScale = Math.min(1.2, Math.max(0.25, Number(c.alertScale) || 1));
     c.logoScale = Math.min(2.5, Math.max(0.5, Number(c.logoScale) || 1));
-    for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday']) c[k] = !!c[k];
-    for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle']) c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
+    for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday', 'goalAlertEnabled']) c[k] = !!c[k];
+    for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle', 'goalAlertLabel', 'goalAlertStamp']) {
+      c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
+    }
     if (!POSITIONS.includes(c.widgetPos)) c.widgetPos = DEFAULT_CONFIG.widgetPos;
     if (!STYLES.includes(c.widgetStyle)) c.widgetStyle = DEFAULT_CONFIG.widgetStyle;
     if (!['below', 'above', 'left', 'right'].includes(c.todayPos)) c.todayPos = DEFAULT_CONFIG.todayPos;
