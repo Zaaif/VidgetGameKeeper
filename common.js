@@ -53,7 +53,7 @@
     c.offset = Math.round(Number(c.offset) || 0);
     c.volume = Math.min(1, Math.max(0, Number(c.volume)));
     if (!Number.isFinite(c.volume)) c.volume = DEFAULT_CONFIG.volume;
-    c.widgetScale = Math.min(3, Math.max(0.3, Number(c.widgetScale) || 1));
+    c.widgetScale = Math.min(3, Math.max(0.2, Number(c.widgetScale) || 1));
     c.widgetX = Math.max(-1900, Math.min(1900, Math.round(Number(c.widgetX) || 0)));
     c.widgetY = Math.max(-1060, Math.min(1060, Math.round(Number(c.widgetY) || 0)));
     c.alertScale = Math.min(1.2, Math.max(0.25, Number(c.alertScale) || 1));
