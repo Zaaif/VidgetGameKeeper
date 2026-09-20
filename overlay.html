@@ -160,7 +160,10 @@
 <div id="info" hidden></div>
 <button id="soundBtn" hidden>🔊 Kliknij, żeby włączyć dźwięk (tylko podgląd)</button>
 
-<script src="common.js"></script>
+<script>
+// bez pamięci podręcznej – inaczej OBS i telefon trzymają starą wersję do 10 minut
+document.write('<scr' + 'ipt src="common.js?v=' + Date.now() + '"></scr' + 'ipt>');
+</script>
 <script>
 'use strict';
 const VERSION = '1.0.0';
@@ -893,7 +896,8 @@ function onCommand(m) {
       publishStatusSoon(300);
       break;
     case 'reload':
-      location.reload();
+      // z parametrem, żeby OBS pobrał stronę od nowa zamiast z pamięci podręcznej
+      location.replace(location.pathname + '?cb=' + Date.now() + location.hash);
       break;
   }
 }
