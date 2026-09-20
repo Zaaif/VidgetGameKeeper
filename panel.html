@@ -345,6 +345,13 @@
           </label>
           <div class="sub">Link działa jak hasło: kto go zna, może odpalać animacje. Nie pokazuj go na streamie.</div>
           <div class="sub" id="srvInfo"></div>
+          <label class="f">Token ntfy (zapisany tylko w tej przeglądarce)
+            <div class="inline">
+              <input type="password" id="tokenInput" placeholder="tk_…" autocomplete="off">
+              <button id="tokenSave">Zapisz</button>
+            </div>
+            <span class="hint">Potrzebny tylko przy koncie płatnym. Nie trafia do żadnego linku ani na kanał.</span>
+          </label>
           <button id="changeTopic">Zmień kanał</button>
         </div>
       </details>
@@ -404,8 +411,7 @@ if (!P.topic) {
 function start() {
   const KEY_LOCAL = `wl.panel.${P.topic}`;
   const serverPart = (P.server !== 'https://ntfy.sh' ? `&server=${encodeURIComponent(P.server)}` : '')
-    + (P.server2 !== WL.BACKUP_SERVER ? `&server2=${encodeURIComponent(P.server2)}` : '')
-    + (P.token ? `&token=${encodeURIComponent(P.token)}` : '');
+    + (P.server2 !== WL.BACKUP_SERVER ? `&server2=${encodeURIComponent(P.server2)}` : '');
   const obsUrl = new URL('overlay.html', location.href);
   obsUrl.hash = `topic=${encodeURIComponent(P.topic)}${serverPart}`;
   $('obsUrl').textContent = obsUrl.href;
@@ -426,10 +432,12 @@ function start() {
   let sendTimer = null;
   let goals = (saved && saved.cfg && saved.cfg.goals) || [];
 
+  const KEY_TOKEN = `wl.token.${P.topic}`;
+  let token = P.token || WL.store.get(KEY_TOKEN, '') || '';
   const bus = new WL.Bus({
     servers: [P.server, P.server2 !== 'off' ? P.server2 : null],
     topic: P.topic,
-    token: P.token,
+    token,
     onState: (s) => { R.connected = s === 'open'; if (R.connected) ping(); render(); },
     onMessage,
   });
@@ -702,8 +710,21 @@ function start() {
   if (R.cfg) fillForm(R.cfg); else fillForm(WL.DEFAULT_CONFIG);
 
   // ---------- render ----------
-  $('srvInfo').textContent = `Serwery: ${P.server}${P.server2 !== 'off' ? ' + ' + P.server2 : ''}`
-    + (P.token ? ' · token konta włączony' : ' · bez tokenu (limit liczony po adresie IP)');
+  function renderSrvInfo() {
+    $('srvInfo').textContent = `Serwery: ${P.server}${P.server2 !== 'off' ? ' + ' + P.server2 : ''}`
+      + (token ? ' · token konta włączony' : ' · bez tokenu (limit liczony po adresie IP)');
+    $('tokenInput').value = token ? '••••••••' + token.slice(-4) : '';
+  }
+  renderSrvInfo();
+  $('tokenSave').onclick = () => {
+    const v = $('tokenInput').value.trim();
+    if (v.includes('•')) return toast('Token bez zmian');
+    token = v;
+    bus.setToken(v);
+    WL.store.set(KEY_TOKEN, v);
+    renderSrvInfo();
+    toast(v ? 'Token zapisany w tej przeglądarce' : 'Token usunięty');
+  };
   function chip(text, cls) { return `<span class="chip ${cls}">${text}</span>`; }
   function render() {
     const cfg = R.cfg || WL.DEFAULT_CONFIG;

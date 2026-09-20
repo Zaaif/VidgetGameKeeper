@@ -145,6 +145,18 @@
 
     connect() { this.servers.forEach((srv, i) => this.connectOne(i)); }
 
+    // zmiana tokenu w locie: przelogowujemy nasłuch na serwerze głównym
+    setToken(token) {
+      this.token = token || '';
+      const c = this.conns[0];
+      if (!c) return;
+      const old = c.es;
+      c.es = null;
+      c.retry = 1000;
+      if (old) old.close();
+      this.connectOne(0);
+    }
+
     connectOne(i) {
       const c = this.conns[i];
       const url = `${this.servers[i]}/${encodeURIComponent(this.topic)}/sse?since=${encodeURIComponent(c.lastId || '12h')}${authQuery(this.tokenFor(i))}`;
@@ -205,7 +217,7 @@
           return out;
         } catch (e) {
           last = e;
-          if (!/ntfy (429|5\d\d)|Failed|NetworkError|load failed/i.test(e.message)) throw e;
+          if (!/ntfy (401|403|429|5\d\d)|Failed|NetworkError|load failed/i.test(e.message)) throw e;
         }
       }
       throw last || new Error('ntfy niedostępne');
