@@ -357,6 +357,7 @@
           </label>
           <div class="sub">Link działa jak hasło: kto go zna, może odpalać animacje. Nie pokazuj go na streamie.</div>
           <div class="sub" id="srvInfo"></div>
+          <div class="sub" id="verInfo"></div>
           <label class="f">Token ntfy (zapisany tylko w tej przeglądarce)
             <div class="inline">
               <input type="password" id="tokenInput" placeholder="tk_…" autocomplete="off">
@@ -799,6 +800,9 @@ function start() {
       if (st.playing) chips.push(chip('Animacja leci…', 'ok'));
     }
     $('chips').innerHTML = chips.join('');
+    $('verInfo').textContent = R.status
+      ? `Wersja overlaya: ${R.status.v || '?'} (status ${ago(R.statusTime)})`
+      : 'Wersja overlaya: brak kontaktu';
 
     // liczniki
     const raw = R.count ? R.count.raw : null;

@@ -143,8 +143,9 @@
   .wbox::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: var(--wdeco); }
   .wbox[hidden] { display: none; }
   .wscreen { position: absolute; inset: 0; padding: var(--wpad); box-sizing: border-box;
-    font-family: var(--wfont); opacity: 0; transition: opacity .45s ease; pointer-events: none; }
-  .wscreen.on { opacity: 1; }
+    font-family: var(--wfont); opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .35s ease, visibility 0s linear .35s; }
+  .wscreen.on { opacity: 1; visibility: visible; transition: opacity .35s ease .35s, visibility 0s linear 0s; }
   .wrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
   .wtitle { color: var(--wtitle-color); font-size: var(--wtitle-size); letter-spacing: var(--wtitle-space);
     font-weight: var(--wtitle-weight); padding-bottom: 8px; text-transform: uppercase; }
@@ -423,7 +424,7 @@ document.write('<scr' + 'ipt src="common.js?v=' + Date.now() + '"></scr' + 'ipt>
 </script>
 <script>
 'use strict';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0-2026-09-20';
 const P = WL.readParams();
 const $ = (id) => document.getElementById(id);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
