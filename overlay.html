@@ -613,9 +613,19 @@ function renderWidget() {
   $('wTitle').textContent = cfg.widgetTitle;
   if (t == null) return;
 
-  const prev = WL.tierOf(t, cfg.step);
-  const next = prev + cfg.step;
-  const filled = Math.floor(((t - prev) / cfg.step) * SEGMENTS);
+  // pasek: albo do następnego progu, albo do najbliższego celu
+  let prev = WL.tierOf(t, cfg.step);
+  let next = prev + cfg.step;
+  if (cfg.barToGoal && goals.length) {
+    const ns = goals.map((g) => g.n).sort((a, b) => a - b);
+    const after = ns.find((n) => n > t);
+    if (after != null) {
+      next = after;
+      prev = ns.filter((n) => n <= t).pop() || 0;
+    }
+  }
+  const span = Math.max(1, next - prev);
+  const filled = Math.floor(((t - prev) / span) * SEGMENTS);
   Array.from(wBar.children).forEach((el, i) => {
     el.className = i < filled ? 'on' : i === filled ? 'edge' : '';
   });

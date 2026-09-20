@@ -12,6 +12,7 @@
 
   const DEFAULT_CONFIG = {
     step: 100,              // co ile wishlist jest próg
+    barToGoal: false,       // pasek celuje w najbliższy cel zamiast w próg
     minUptimeMin: 10,       // ile minut streama musi minąć, zanim animacja poleci
     requireStream: true,    // animacja tylko gdy OBS streamuje
     alertsEnabled: true,    // false = kolejka czeka, nic nie leci
@@ -57,7 +58,7 @@
     c.widgetY = Math.max(-1060, Math.min(1060, Math.round(Number(c.widgetY) || 0)));
     c.alertScale = Math.min(1.2, Math.max(0.25, Number(c.alertScale) || 1));
     c.logoScale = Math.min(2.5, Math.max(0.5, Number(c.logoScale) || 1));
-    for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday', 'goalAlertEnabled', 'showSteamTag']) c[k] = !!c[k];
+    for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday', 'goalAlertEnabled', 'showSteamTag', 'barToGoal']) c[k] = !!c[k];
     for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle', 'goalAlertLabel', 'goalAlertStamp', 'steamTagText']) {
       c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
     }
@@ -182,11 +183,10 @@
         let body;
         try { body = JSON.parse(m.message); } catch (e) { return; }
         if (!body || typeof body.t !== 'string') return;
-        // ta sama wiadomość może przyjść z obu serwerów – bierzemy pierwszą
-        const key = `${body.t}|${body.ts}|${body.cmd || ''}`;
-        if (this.seen.has(key)) return;
-        this.seen.add(key);
-        if (this.seen.size > 500) this.seen = new Set(Array.from(this.seen).slice(-250));
+        // ta sama wiadomość może przyjść z obu serwerów – porównujemy całą treść
+        if (this.seen.has(m.message)) return;
+        this.seen.add(m.message);
+        if (this.seen.size > 200) this.seen = new Set(Array.from(this.seen).slice(-100));
         try {
           this.onMessage(body, { id: m.id, time: m.time * 1000, server: this.servers[i] });
         } catch (e) {

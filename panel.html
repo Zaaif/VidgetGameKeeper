@@ -181,8 +181,10 @@
               <button type="button" class="small" data-step="250">250</button>
               <button type="button" class="small" data-step="500">500</button>
               <button type="button" class="small" data-step="1000">1000</button>
+              <button type="button" class="small" id="fitGoals">🎯 Dopasuj do celów</button>
             </div>
           </label>
+          <label class="check"><input type="checkbox" name="barToGoal"> Pasek celuje w najbliższy cel <span class="sub">(zamiast w próg)</span></label>
           <label class="f">Minimalny czas streama przed animacją (minuty)
             <input type="number" name="minUptimeMin" min="0" step="1" inputmode="numeric">
             <span class="hint">Próg przebity wcześniej albo poza streamem czeka w kolejce, aż stream potrwa tyle minut.</span>
@@ -641,6 +643,18 @@ function start() {
     setVolume(Math.round(Number(form.elements.volume.value) * 100) + Number(b.dataset.vol));
     $('volNum').value = Math.round(Number(form.elements.volume.value) * 100);
   }));
+  // pasek liczony do najbliższego celu; próg animacji ustawiamy na największy wspólny dzielnik celów,
+  // żeby każdy cel wypadał dokładnie na progu
+  $('fitGoals').addEventListener('click', () => {
+    const ns = goals.map((g) => Number(g.n)).filter((n) => n > 0);
+    if (!ns.length) return toast('Najpierw dodaj cele');
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    const step = ns.reduce((a, b) => gcd(a, b));
+    form.elements.step.value = step;
+    form.elements.barToGoal.checked = true;
+    form.dispatchEvent(new Event('input'));
+    toast(`Pasek celuje w cele, próg co ${WL.fmt(step)}`);
+  });
   form.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => {
     form.elements.step.value = b.dataset.step;
     form.dispatchEvent(new Event('input'));
