@@ -17,12 +17,14 @@
     alertsEnabled: true,    // false = kolejka czeka, nic nie leci
     showBar: true,          // pasek postępu do następnego progu
     showToday: true,        // „+123 dziś”
+    widgetStyle: 'pixel',   // wygląd ramki widgetu
     widgetPos: 'top-right',
     widgetScale: 1,
     widgetX: 0,             // przesunięcie względem rogu: + w prawo
     widgetY: 0,             // + w dół
     goals: [],              // [{n: 5000, text: 'nowa gra na streamie'}] – przewijają się w widgecie
-    goalSeconds: 6,         // co ile sekund zmienia się pokazywany cel
+    barSeconds: 60,         // jak długo widać pasek postępu
+    goalSeconds: 10,        // jak długo widać jeden cel
     todayPos: 'below',      // gdzie licznik „+X dziś” względem paska
     alertPos: 'center',     // gdzie leci animacja progu
     alertScale: 1,          // 1 = cały ekran
@@ -36,6 +38,7 @@
   };
 
   const POSITIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center'];
+  const STYLES = ['pixel', 'modern', 'glass', 'neon', 'minimal', 'paper', 'arcade', 'terminal', 'sunset', 'outline', 'light', 'vhs'];
 
   function normalizeConfig(cfg) {
     const c = Object.assign({}, DEFAULT_CONFIG, cfg || {});
@@ -52,8 +55,10 @@
     for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday']) c[k] = !!c[k];
     for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle']) c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
     if (!POSITIONS.includes(c.widgetPos)) c.widgetPos = DEFAULT_CONFIG.widgetPos;
+    if (!STYLES.includes(c.widgetStyle)) c.widgetStyle = DEFAULT_CONFIG.widgetStyle;
     if (!['below', 'above', 'left', 'right'].includes(c.todayPos)) c.todayPos = DEFAULT_CONFIG.todayPos;
-    c.goalSeconds = Math.min(60, Math.max(2, Number(c.goalSeconds) || DEFAULT_CONFIG.goalSeconds));
+    c.goalSeconds = Math.min(600, Math.max(3, Number(c.goalSeconds) || DEFAULT_CONFIG.goalSeconds));
+    c.barSeconds = Math.min(600, Math.max(3, Number(c.barSeconds) || DEFAULT_CONFIG.barSeconds));
     c.goals = (Array.isArray(c.goals) ? c.goals : [])
       .map((g) => ({ n: Math.round(Number(g && g.n)), text: String((g && g.text) || '').slice(0, 60) }))
       .filter((g) => Number.isFinite(g.n) && g.n > 0)
@@ -72,6 +77,8 @@
       server: (get('server') || 'https://ntfy.sh').replace(/\/+$/, ''),
       debug: get('debug') === '1',
       preview: get('preview') === '1',
+      style: get('style') || '',      // podgląd wybranego stylu ramki
+      fake: get('fake') === '1',      // podgląd bez ntfy, na przykładowych danych
     };
   }
 
@@ -180,5 +187,5 @@
     }
   }
 
-  global.WL = { DEFAULT_CONFIG, normalizeConfig, readParams, fmt, tierOf, randomTopic, store, Bus };
+  global.WL = { DEFAULT_CONFIG, STYLES, normalizeConfig, readParams, fmt, tierOf, randomTopic, store, Bus };
 })(window);

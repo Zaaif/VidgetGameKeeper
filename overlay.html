@@ -5,7 +5,7 @@
 <title>Game Keeper – wishlist overlay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Patrick+Hand&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Patrick+Hand&family=Inter:wght@400;600;800;900&family=Share+Tech+Mono&family=Bebas+Neue&display=block" rel="stylesheet">
 <style>
   :root {
     --ink: #1b0e06;
@@ -85,28 +85,219 @@
   #widget.today-above { flex-direction: column-reverse; }
   #widget.today-right { flex-direction: row; align-items: center; }
   #widget.today-left  { flex-direction: row-reverse; align-items: center; }
-  .wbox { position: relative; background: rgba(27,14,6,.9); padding: 18px 22px 16px; min-width: 460px; box-sizing: border-box;
-    box-shadow: 0 -4px 0 0 var(--cream), 0 4px 0 0 var(--cream), -4px 0 0 0 var(--cream), 4px 0 0 0 var(--cream),
-                0 -8px 0 0 var(--ink), 0 8px 0 0 var(--ink), -8px 0 0 0 var(--ink), 8px 0 0 0 var(--ink),
-                0 16px 0 0 rgba(0,0,0,.3); }
+  /* stała ramka – treść przełącza się w środku, rozmiar się nie rusza.
+     Wygląd sterują zmienne, a każdy styl podmienia tylko je. */
+  #widget {
+    --wbg: linear-gradient(180deg, rgba(37,20,9,.94), rgba(20,11,4,.94));
+    --wborder: none;
+    --wradius: 0;
+    --wshadow: 0 -4px 0 0 var(--cream), 0 4px 0 0 var(--cream), -4px 0 0 0 var(--cream), 4px 0 0 0 var(--cream),
+               0 -8px 0 0 var(--ink), 0 8px 0 0 var(--ink), -8px 0 0 0 var(--ink), 8px 0 0 0 var(--ink),
+               0 16px 0 0 rgba(0,0,0,.35);
+    --wfont: 'Press Start 2P', monospace;
+    --wpad: 18px 24px 16px;
+    --wtitle-color: var(--cream); --wtitle-size: 16px; --wtitle-space: 1px; --wtitle-weight: 400;
+    --wcount-color: var(--orange); --wcount-size: 32px; --wcount-shadow: 0 4px 0 #6b3405; --wcount-weight: 400;
+    --wsub-color: #c8ab86; --wsub-size: 16px;
+    --wtrack: var(--ink-2); --wtrack-inset: inset 0 0 0 3px #4d2c12; --wtrack-h: 24px; --wtrack-radius: 0;
+    --wseg-gap: 4px; --wseg-off: #5b3517; --wseg-radius: 0;
+    --wfill: linear-gradient(180deg, var(--orange-hi), var(--orange) 50%, var(--orange-lo));
+    --wblink: #ffe9a8;
+    --wgnum-color: var(--orange); --wgnum-size: 26px; --wgnum-weight: 400;
+    --wgtxt-color: #e6cfae; --wgtxt-size: 16px;
+    --wdone: #6dff87; --wdone-2: #a9ffb8;
+    --wtoday-bg: var(--pink); --wtoday-color: #fff; --wtoday-size: 16px;
+    --wtoday-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), 0 10px 0 0 rgba(0,0,0,.3);
+    --wtoday-radius: 0; --wdeco: none;
+  }
+  .wbox { position: relative; width: 640px; height: 140px; box-sizing: border-box; overflow: hidden;
+    background: var(--wbg); border: var(--wborder); border-radius: var(--wradius); box-shadow: var(--wshadow); }
+  .wbox::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: var(--wdeco); }
   .wbox[hidden] { display: none; }
+  .wscreen { position: absolute; inset: 0; padding: var(--wpad); box-sizing: border-box;
+    font-family: var(--wfont); opacity: 0; transition: opacity .45s ease; pointer-events: none; }
+  .wscreen.on { opacity: 1; }
   .wrow { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
-  .wtitle { font-size: 16px; color: var(--cream); padding-bottom: 6px; }
-  .wcount { position: relative; font-size: 32px; color: var(--orange); text-shadow: 0 4px 0 #6b3405; }
-  .wbar { display: flex; gap: 4px; height: 26px; margin: 14px 0 12px; padding: 4px; background: var(--ink-2); box-shadow: inset 0 0 0 3px #4d2c12; }
-  .wbar i { flex: 1; background: #5b3517; }
-  .wbar i.on { background: linear-gradient(180deg, var(--orange-hi), var(--orange) 50%, var(--orange-lo)); }
-  .wbar i.edge { animation: blink 0.9s steps(2, end) infinite; }
-  @keyframes blink { 50% { background: #ffe9a8; } }
-  .wsub { font-size: 14px; color: #d9bf9b; }
-  .wgoal { display: flex; align-items: baseline; gap: 10px; font-size: 14px; color: var(--cream); max-width: 560px;
-    transition: opacity .35s ease; white-space: nowrap; overflow: hidden; }
-  .wgoal .gn { color: var(--orange); }
-  .wgoal .gt { color: #e6cfae; text-overflow: ellipsis; overflow: hidden; }
-  .wgoal.done .gn, .wgoal.done .gt { color: #6dff87; }
-  .wgoal.done .gt { text-shadow: 0 0 10px rgba(109,255,135,.35); }
-  .wsub b { color: var(--cream); font-weight: normal; }
-  .today { font-size: 16px; color: #fff; background: var(--pink); padding: 10px 14px 9px; box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), 0 10px 0 0 rgba(0,0,0,.3); }
+  .wtitle { color: var(--wtitle-color); font-size: var(--wtitle-size); letter-spacing: var(--wtitle-space);
+    font-weight: var(--wtitle-weight); padding-bottom: 8px; text-transform: uppercase; }
+  .wcount { position: relative; color: var(--wcount-color); font-size: var(--wcount-size);
+    font-weight: var(--wcount-weight); text-shadow: var(--wcount-shadow); line-height: 1; }
+  .wbar { display: flex; gap: var(--wseg-gap); height: var(--wtrack-h); margin: 12px 0 10px; padding: 4px;
+    background: var(--wtrack); box-shadow: var(--wtrack-inset); border-radius: var(--wtrack-radius); box-sizing: border-box; }
+  .wbar i { flex: 1; background: var(--wseg-off); border-radius: var(--wseg-radius); }
+  .wbar i.on { background: var(--wfill); }
+  .wbar i.edge { animation: blink 10s steps(1, end) infinite; }
+  @keyframes blink { 0%, 95% { background: var(--wseg-off); } 96%, 98% { background: var(--wblink); } 99% { background: var(--wseg-off); } }
+  .wsub { color: var(--wsub-color); font-size: var(--wsub-size); }
+  .wsub b { color: var(--wtitle-color); font-weight: inherit; }
+  .wgoal { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    text-align: center; overflow: hidden; }
+  .wgoal .gn { color: var(--wgnum-color); font-size: var(--wgnum-size); font-weight: var(--wgnum-weight); text-shadow: var(--wcount-shadow); }
+  .wgoal .gt { color: var(--wgtxt-color); font-size: var(--wgtxt-size); line-height: 1.5; }
+  .wgoal.done .gn { color: var(--wdone); text-shadow: none; }
+  .wgoal.done .gt { color: var(--wdone-2); }
+
+  /* ---------- style ramki ---------- */
+  #widget.s-modern {
+    --wbg: linear-gradient(145deg, rgba(20,25,33,.96), rgba(12,15,20,.96));
+    --wborder: 1px solid rgba(255,255,255,.12); --wradius: 16px;
+    --wshadow: 0 18px 40px rgba(0,0,0,.45);
+    --wfont: 'Inter', system-ui, sans-serif; --wpad: 20px 26px 18px;
+    --wtitle-color: #93a1b5; --wtitle-size: 13px; --wtitle-space: 3px; --wtitle-weight: 600;
+    --wcount-color: #fff; --wcount-size: 40px; --wcount-weight: 800; --wcount-shadow: none;
+    --wsub-color: #8492a6; --wsub-size: 14px;
+    --wtrack: rgba(255,255,255,.07); --wtrack-inset: none; --wtrack-h: 12px; --wtrack-radius: 99px;
+    --wseg-gap: 0px; --wseg-off: transparent; --wseg-radius: 0;
+    --wfill: linear-gradient(90deg, #ffb43a, #ff7a18); --wblink: #ffe0a8;
+    --wgnum-color: #ffb43a; --wgnum-size: 30px; --wgnum-weight: 800;
+    --wgtxt-color: #dbe3ee; --wgtxt-size: 16px;
+    --wtoday-bg: rgba(255,255,255,.08); --wtoday-color: #fff; --wtoday-size: 13px; --wtoday-radius: 99px;
+    --wtoday-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+    --wdeco: linear-gradient(90deg, rgba(255,180,58,.9) 0 4px, transparent 4px);
+  }
+  #widget.s-glass {
+    --wbg: rgba(255,255,255,.1); --wborder: 1px solid rgba(255,255,255,.3); --wradius: 20px;
+    --wshadow: 0 16px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.4);
+    --wfont: 'Inter', system-ui, sans-serif; --wpad: 20px 26px 18px;
+    --wtitle-color: rgba(255,255,255,.75); --wtitle-size: 13px; --wtitle-space: 3px; --wtitle-weight: 600;
+    --wcount-color: #fff; --wcount-size: 40px; --wcount-weight: 800; --wcount-shadow: 0 2px 12px rgba(0,0,0,.4);
+    --wsub-color: rgba(255,255,255,.7); --wsub-size: 14px;
+    --wtrack: rgba(255,255,255,.18); --wtrack-inset: none; --wtrack-h: 10px; --wtrack-radius: 99px;
+    --wseg-gap: 0px; --wseg-off: transparent;
+    --wfill: linear-gradient(90deg, #fff, rgba(255,255,255,.75)); --wblink: #fff;
+    --wgnum-color: #fff; --wgnum-size: 30px; --wgnum-weight: 800;
+    --wgtxt-color: rgba(255,255,255,.85); --wgtxt-size: 16px;
+    --wtoday-bg: rgba(255,255,255,.18); --wtoday-color: #fff; --wtoday-size: 13px; --wtoday-radius: 99px; --wtoday-shadow: none;
+  }
+  #widget.s-neon {
+    --wbg: #07060d; --wborder: 2px solid #ff2e88; --wradius: 8px;
+    --wshadow: 0 0 18px rgba(255,46,136,.55), inset 0 0 26px rgba(255,46,136,.16);
+    --wfont: 'Share Tech Mono', monospace; --wpad: 18px 24px 16px;
+    --wtitle-color: #4df0ff; --wtitle-size: 16px; --wtitle-space: 4px;
+    --wcount-color: #ff2e88; --wcount-size: 42px; --wcount-shadow: 0 0 14px rgba(255,46,136,.8);
+    --wsub-color: #9ad9e6; --wsub-size: 15px;
+    --wtrack: #120b1c; --wtrack-inset: inset 0 0 0 1px rgba(77,240,255,.35); --wtrack-h: 16px; --wtrack-radius: 2px;
+    --wseg-gap: 3px; --wseg-off: #1d1430;
+    --wfill: linear-gradient(90deg, #4df0ff, #ff2e88); --wblink: #fff;
+    --wgnum-color: #4df0ff; --wgnum-size: 30px; --wgtxt-color: #ffd7ec; --wgtxt-size: 16px;
+    --wdone: #7dff9a; --wdone-2: #b9ffc8;
+    --wtoday-bg: #ff2e88; --wtoday-color: #fff; --wtoday-size: 14px; --wtoday-radius: 4px;
+    --wtoday-shadow: 0 0 12px rgba(255,46,136,.7);
+  }
+  #widget.s-minimal {
+    --wbg: transparent; --wborder: none; --wradius: 0; --wshadow: none;
+    --wfont: 'Inter', system-ui, sans-serif; --wpad: 14px 8px;
+    --wtitle-color: rgba(255,255,255,.8); --wtitle-size: 14px; --wtitle-space: 4px; --wtitle-weight: 600;
+    --wcount-color: #fff; --wcount-size: 46px; --wcount-weight: 900; --wcount-shadow: 0 3px 10px rgba(0,0,0,.85);
+    --wsub-color: rgba(255,255,255,.75); --wsub-size: 15px;
+    --wtrack: rgba(0,0,0,.45); --wtrack-inset: none; --wtrack-h: 8px; --wtrack-radius: 99px;
+    --wseg-gap: 0px; --wseg-off: transparent; --wfill: #fff; --wblink: #ffe9a8;
+    --wgnum-color: #fff; --wgnum-size: 32px; --wgnum-weight: 900; --wgtxt-color: rgba(255,255,255,.9); --wgtxt-size: 17px;
+    --wtoday-bg: rgba(0,0,0,.5); --wtoday-color: #fff; --wtoday-size: 14px; --wtoday-radius: 99px; --wtoday-shadow: none;
+  }
+  #widget.s-paper {
+    --wbg: var(--paper); --wborder: 6px solid var(--ink); --wradius: 18px 10px 24px 12px / 12px 22px 10px 18px;
+    --wshadow: 0 12px 0 rgba(27,14,6,.35);
+    --wfont: 'Patrick Hand', cursive; --wpad: 14px 28px;
+    --wtitle-color: var(--ink); --wtitle-size: 24px; --wtitle-space: 1px;
+    --wcount-color: var(--ink); --wcount-size: 44px; --wcount-shadow: none;
+    --wsub-color: #6b4a2a; --wsub-size: 22px;
+    --wtrack: #e3c497; --wtrack-inset: inset 0 0 0 3px var(--ink); --wtrack-h: 22px; --wtrack-radius: 6px;
+    --wseg-gap: 3px; --wseg-off: #d3ae7d;
+    --wfill: linear-gradient(180deg, var(--orange-hi), var(--orange-lo)); --wblink: #fff3cf;
+    --wgnum-color: var(--pink); --wgnum-size: 34px; --wgtxt-color: var(--ink); --wgtxt-size: 24px;
+    --wdone: #1d7a35; --wdone-2: #245e2f;
+    --wtoday-bg: var(--tape); --wtoday-color: var(--ink); --wtoday-size: 20px; --wtoday-radius: 4px;
+    --wtoday-shadow: 0 0 0 4px var(--ink);
+  }
+  #widget.s-arcade {
+    --wbg: linear-gradient(180deg, #16215a, #0b1038); --wborder: 6px solid #ffcf3f; --wradius: 6px;
+    --wshadow: inset 0 0 0 4px #24317a, 0 12px 0 rgba(0,0,0,.4);
+    --wfont: 'Press Start 2P', monospace; --wpad: 16px 22px 14px;
+    --wtitle-color: #9ecbff; --wtitle-size: 14px; --wtitle-space: 1px;
+    --wcount-color: #ffcf3f; --wcount-size: 32px; --wcount-shadow: 0 4px 0 #b3790a;
+    --wsub-color: #8fb7ee; --wsub-size: 14px;
+    --wtrack: #0a0f30; --wtrack-inset: inset 0 0 0 3px #2b3a8f; --wtrack-h: 22px;
+    --wseg-gap: 4px; --wseg-off: #23307d;
+    --wfill: linear-gradient(180deg, #ff4d6d, #c2185b); --wblink: #fff;
+    --wgnum-color: #ffcf3f; --wgnum-size: 26px; --wgtxt-color: #cfe2ff; --wgtxt-size: 15px;
+    --wtoday-bg: #ff4d6d; --wtoday-color: #fff; --wtoday-size: 14px; --wtoday-radius: 4px;
+    --wtoday-shadow: 0 0 0 4px #0b1038;
+    --wdeco: radial-gradient(circle at 12px 12px, #ffcf3f 3px, transparent 4px),
+             radial-gradient(circle at calc(100% - 12px) 12px, #ffcf3f 3px, transparent 4px),
+             radial-gradient(circle at 12px calc(100% - 12px), #ffcf3f 3px, transparent 4px),
+             radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), #ffcf3f 3px, transparent 4px);
+  }
+  #widget.s-terminal {
+    --wbg: rgba(2,14,4,.9); --wborder: 2px solid #33ff66; --wradius: 4px;
+    --wshadow: 0 0 18px rgba(51,255,102,.25), inset 0 0 30px rgba(51,255,102,.08);
+    --wfont: 'Share Tech Mono', monospace; --wpad: 16px 22px 14px;
+    --wtitle-color: #7cffa6; --wtitle-size: 16px; --wtitle-space: 3px;
+    --wcount-color: #33ff66; --wcount-size: 42px; --wcount-shadow: 0 0 12px rgba(51,255,102,.7);
+    --wsub-color: #62c47f; --wsub-size: 15px;
+    --wtrack: #04210c; --wtrack-inset: inset 0 0 0 1px #1c6b33; --wtrack-h: 18px; --wtrack-radius: 2px;
+    --wseg-gap: 3px; --wseg-off: #0c3d1a; --wfill: #33ff66; --wblink: #d9ffe4;
+    --wgnum-color: #33ff66; --wgnum-size: 30px; --wgtxt-color: #a8ffc2; --wgtxt-size: 16px;
+    --wdone: #eaff7c; --wdone-2: #f4ffbe;
+    --wtoday-bg: #0c3d1a; --wtoday-color: #7cffa6; --wtoday-size: 14px; --wtoday-radius: 2px;
+    --wtoday-shadow: inset 0 0 0 1px #33ff66;
+    --wdeco: repeating-linear-gradient(180deg, rgba(0,0,0,.25) 0 1px, transparent 1px 3px);
+  }
+  #widget.s-sunset {
+    --wbg: linear-gradient(135deg, #ff8a2b 0%, #ff4d6d 45%, #8f2d9e 100%);
+    --wborder: none; --wradius: 22px; --wshadow: 0 18px 40px rgba(143,45,158,.45);
+    --wfont: 'Inter', system-ui, sans-serif; --wpad: 20px 26px 18px;
+    --wtitle-color: rgba(255,255,255,.85); --wtitle-size: 13px; --wtitle-space: 3px; --wtitle-weight: 700;
+    --wcount-color: #fff; --wcount-size: 40px; --wcount-weight: 900; --wcount-shadow: 0 3px 10px rgba(0,0,0,.25);
+    --wsub-color: rgba(255,255,255,.85); --wsub-size: 14px;
+    --wtrack: rgba(0,0,0,.25); --wtrack-inset: none; --wtrack-h: 12px; --wtrack-radius: 99px;
+    --wseg-gap: 0px; --wseg-off: transparent; --wfill: #fff; --wblink: #ffe9a8;
+    --wgnum-color: #fff; --wgnum-size: 32px; --wgnum-weight: 900; --wgtxt-color: rgba(255,255,255,.92); --wgtxt-size: 16px;
+    --wdone: #101010; --wdone-2: rgba(0,0,0,.75);
+    --wtoday-bg: #fff; --wtoday-color: #b3245c; --wtoday-size: 13px; --wtoday-radius: 99px; --wtoday-shadow: none;
+  }
+  #widget.s-outline {
+    --wbg: rgba(0,0,0,.25); --wborder: 4px solid var(--cream); --wradius: 0; --wshadow: 0 0 0 2px rgba(0,0,0,.5);
+    --wfont: 'Bebas Neue', 'Inter', sans-serif; --wpad: 16px 26px 12px;
+    --wtitle-color: var(--cream); --wtitle-size: 22px; --wtitle-space: 4px;
+    --wcount-color: var(--cream); --wcount-size: 54px; --wcount-shadow: none;
+    --wsub-color: #e8d5b8; --wsub-size: 22px;
+    --wtrack: rgba(252,230,198,.15); --wtrack-inset: inset 0 0 0 2px var(--cream); --wtrack-h: 16px;
+    --wseg-gap: 4px; --wseg-off: transparent; --wfill: var(--cream); --wblink: #fff;
+    --wgnum-color: var(--cream); --wgnum-size: 40px; --wgtxt-color: #efe0c8; --wgtxt-size: 24px;
+    --wtoday-bg: transparent; --wtoday-color: var(--cream); --wtoday-size: 20px; --wtoday-radius: 0;
+    --wtoday-shadow: inset 0 0 0 3px var(--cream);
+  }
+  #widget.s-light {
+    --wbg: #f7f8fc; --wborder: 1px solid rgba(20,26,40,.1); --wradius: 18px;
+    --wshadow: 0 14px 30px rgba(0,0,0,.35);
+    --wfont: 'Inter', system-ui, sans-serif; --wpad: 20px 26px 18px;
+    --wtitle-color: #6b7686; --wtitle-size: 13px; --wtitle-space: 3px; --wtitle-weight: 700;
+    --wcount-color: #121826; --wcount-size: 40px; --wcount-weight: 800; --wcount-shadow: none;
+    --wsub-color: #7b8698; --wsub-size: 14px;
+    --wtrack: #e6e9f2; --wtrack-inset: none; --wtrack-h: 12px; --wtrack-radius: 99px;
+    --wseg-gap: 0px; --wseg-off: transparent;
+    --wfill: linear-gradient(90deg, #2f80ed, #56ccf2); --wblink: #bfe0ff;
+    --wgnum-color: #2f80ed; --wgnum-size: 30px; --wgnum-weight: 800; --wgtxt-color: #2b3445; --wgtxt-size: 16px;
+    --wdone: #12a150; --wdone-2: #14663a;
+    --wtoday-bg: #121826; --wtoday-color: #fff; --wtoday-size: 13px; --wtoday-radius: 99px; --wtoday-shadow: none;
+  }
+  #widget.s-vhs {
+    --wbg: linear-gradient(180deg, #1b1526, #120e1a); --wborder: 2px solid #d9d4e7; --wradius: 6px;
+    --wshadow: 0 10px 28px rgba(0,0,0,.5);
+    --wfont: 'Share Tech Mono', monospace; --wpad: 16px 22px 14px;
+    --wtitle-color: #d9d4e7; --wtitle-size: 16px; --wtitle-space: 3px;
+    --wcount-color: #fff; --wcount-size: 42px; --wcount-shadow: 2px 0 0 rgba(255,0,80,.75), -2px 0 0 rgba(0,220,255,.75);
+    --wsub-color: #b2a9c9; --wsub-size: 15px;
+    --wtrack: #241c33; --wtrack-inset: inset 0 0 0 1px #4a3d68; --wtrack-h: 18px; --wtrack-radius: 2px;
+    --wseg-gap: 2px; --wseg-off: #332748;
+    --wfill: linear-gradient(90deg, #ff0050, #00dcff); --wblink: #fff;
+    --wgnum-color: #fff; --wgnum-size: 30px; --wgtxt-color: #e3dcf4; --wgtxt-size: 16px;
+    --wtoday-bg: #ff0050; --wtoday-color: #fff; --wtoday-size: 14px; --wtoday-radius: 2px; --wtoday-shadow: none;
+    --wdeco: repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 2px, transparent 2px 4px);
+  }
+  .today { font-family: var(--wfont); font-size: var(--wtoday-size); font-weight: 700; color: var(--wtoday-color);
+    background: var(--wtoday-bg); border-radius: var(--wtoday-radius); padding: 10px 14px 9px; box-shadow: var(--wtoday-shadow); }
   .today[hidden] { display: none; }
   .floater { position: absolute; right: 0; top: -6px; font-size: 22px; color: #7dff8a; text-shadow: 0 3px 0 #0b3a12; pointer-events: none; }
 
@@ -122,10 +313,12 @@
 <div id="stage">
   <div id="widget" hidden>
     <div class="wbox" id="wbox">
-      <div class="wrow"><span class="wtitle" id="wTitle">WISHLISTY</span><span class="wcount" id="wCount">0</span></div>
-      <div class="wbar" id="wBar"></div>
-      <div class="wrow wsub" id="wSub"><span>CEL <b id="wNext">0</b></span><span>JESZCZE <b id="wLeft">0</b></span></div>
-      <div class="wgoal" id="wGoal" hidden><span class="gn"></span><span class="gt"></span></div>
+      <div class="wscreen on" id="wScreenBar">
+        <div class="wrow"><span class="wtitle" id="wTitle">WISHLISTY</span><span class="wcount" id="wCount">0</span></div>
+        <div class="wbar" id="wBar"></div>
+        <div class="wrow wsub" id="wSub"><span>CEL <b id="wNext">0</b></span><span>JESZCZE <b id="wLeft">0</b></span></div>
+      </div>
+      <div class="wscreen wgoal" id="wGoal"><span class="gn"></span><span class="gt"></span></div>
     </div>
     <div class="today" id="wToday" hidden></div>
   </div>
@@ -301,10 +494,11 @@ function renderWidget() {
   const w = $('widget');
   const t = total();
   const todayTxt = todayText();
-  const showBar = cfg.showBar && t != null;
+  const goals = cfg.goals || [];
+  const showFrame = (cfg.showBar || goals.length > 0) && t != null;
   const showToday = cfg.showToday && !!todayTxt;
-  w.hidden = !(showBar || showToday);
-  w.className = `pos-${cfg.widgetPos} today-${cfg.todayPos}`;
+  w.hidden = !(showFrame || showToday);
+  w.className = `pos-${cfg.widgetPos} today-${cfg.todayPos} s-${cfg.widgetStyle}`;
   // dokładna pozycja: margines od wybranego rogu plus przesunięcie z panelu
   const M = 44, st = w.style;
   st.left = st.right = st.top = st.bottom = st.marginLeft = '';
@@ -315,7 +509,7 @@ function renderWidget() {
   else st.bottom = M - cfg.widgetY + 'px';
   const center = cfg.widgetPos.endsWith('center') ? 'translateX(-50%) ' : '';
   w.style.transform = `${center}scale(${cfg.widgetScale})`;
-  $('wbox').hidden = !showBar;
+  $('wbox').hidden = !showFrame;
   $('wToday').hidden = !showToday;
   $('wToday').textContent = todayTxt || '';
   $('wTitle').textContent = cfg.widgetTitle;
@@ -330,19 +524,10 @@ function renderWidget() {
   $('wNext').textContent = WL.fmt(next);
   $('wLeft').textContent = WL.fmt(next - t);
 
-  // cele zastępują wiersz „CEL / JESZCZE” i przewijają się z przenikaniem
-  const goals = cfg.goals || [];
-  const key = JSON.stringify(goals);
-  $('wSub').hidden = goals.length > 0;
-  $('wGoal').hidden = goals.length === 0;
-  if (goals.length) {
-    if (key !== goalsKey) { goalIdx = 0; startGoalCycle(); }
-    showGoal(goalIdx, false);
-  } else {
-    clearInterval(goalTimer);
-    goalTimer = null;
-  }
-  goalsKey = key;
+  // pasek i cele przełączają się w stałej ramce
+  const key = JSON.stringify(goals) + `|${cfg.barSeconds}|${cfg.goalSeconds}|${cfg.showBar}`;
+  if (key !== cycleKey) { cycleKey = key; goalIdx = 0; restartCycle(); }
+  else if (screenMode === 'goal') paintGoal(goalIdx);   // odśwież kolor „zdobyte”
 
   if (shownTotal == null) { shownTotal = t; $('wCount').textContent = WL.fmt(t); return; }
   if (t !== shownTotal) animateCount(shownTotal, t);
@@ -371,31 +556,67 @@ function floater(text) {
     { duration: 1600, easing: 'steps(12, end)' }).onfinish = () => f.remove();
 }
 
-let goalIdx = 0, goalTimer = null, goalsKey = null;
-function showGoal(i, animate) {
+// ---------- przełączanie treści w stałej ramce ----------
+let goalIdx = 0, cycleTimer = null, cycleKey = null, screenMode = 'bar';
+
+// opis celu zmniejszamy tak, żeby zmieścił się w ramce – ramka nigdy nie zmienia rozmiaru
+function fitGoalText() {
+  const el = $('wGoal'), t = el.querySelector('.gt');
+  t.style.fontSize = '';
+  const base = Math.round(parseFloat(getComputedStyle(t).fontSize)) || 16;
+  for (let size = base; size >= 9; size--) {
+    t.style.fontSize = size + 'px';
+    if (el.scrollHeight <= el.clientHeight) break;
+  }
+}
+function paintGoal(i) {
   const goals = cfg.goals || [];
   if (!goals.length) return;
   goalIdx = ((i % goals.length) + goals.length) % goals.length;
-  const g = goals[goalIdx];
-  const el = $('wGoal');
-  const apply = () => {
-    const t = total();
-    const done = t != null && t >= g.n;
-    el.classList.toggle('done', done);
-    el.querySelector('.gn').textContent = (done ? '✔ ' : '') + WL.fmt(g.n);
-    el.querySelector('.gt').textContent = g.text ? '· ' + g.text.toUpperCase() : '';
-    el.style.opacity = '1';
-  };
-  if (animate) {
-    el.style.opacity = '0';
-    setTimeout(apply, 350);
-  } else apply();
+  const g = goals[goalIdx], el = $('wGoal'), t = total();
+  const done = t != null && t >= g.n;
+  el.classList.toggle('done', done);
+  el.querySelector('.gn').textContent = (done ? '✔ ' : '') + WL.fmt(g.n);
+  el.querySelector('.gt').textContent = (g.text || '').toUpperCase();
+  fitGoalText();
 }
-function startGoalCycle() {
-  clearInterval(goalTimer);
-  goalTimer = null;
-  if ((cfg.goals || []).length < 2) return;
-  goalTimer = setInterval(() => showGoal(goalIdx + 1, true), cfg.goalSeconds * 1000);
+function showScreen(mode) {
+  screenMode = mode;
+  $('wScreenBar').classList.toggle('on', mode === 'bar');
+  $('wGoal').classList.toggle('on', mode === 'goal');
+}
+function restartCycle() {
+  clearTimeout(cycleTimer);
+  cycleTimer = null;
+  const goals = cfg.goals || [];
+  if (!goals.length) { showScreen('bar'); return; }
+  if (!cfg.showBar) {
+    paintGoal(goalIdx);
+    showScreen('goal');
+    if (goals.length > 1) cycleTimer = setTimeout(stepCycle, cfg.goalSeconds * 1000);
+    return;
+  }
+  showScreen('bar');
+  cycleTimer = setTimeout(stepCycle, cfg.barSeconds * 1000);
+}
+function stepCycle() {
+  const goals = cfg.goals || [];
+  if (!goals.length) { showScreen('bar'); return; }
+  if (screenMode === 'bar') {
+    paintGoal(goalIdx);
+    showScreen('goal');
+    cycleTimer = setTimeout(stepCycle, cfg.goalSeconds * 1000);
+  } else if (cfg.showBar) {
+    goalIdx += 1;
+    showScreen('bar');
+    cycleTimer = setTimeout(stepCycle, cfg.barSeconds * 1000);
+  } else {
+    // same cele: przenikanie między kolejnymi
+    const el = $('wGoal');
+    el.classList.remove('on');
+    setTimeout(() => { paintGoal(goalIdx + 1); el.classList.add('on'); }, 450);
+    cycleTimer = setTimeout(stepCycle, cfg.goalSeconds * 1000);
+  }
 }
 
 function todayText() {
@@ -928,7 +1149,24 @@ if (!inOBS) {
   b.onclick = () => { Sfx.ensure(); b.hidden = true; };
 }
 
-if (P.topic) {
+// podgląd stylu bez ruszania streama: ?style=neon&fake=1
+if (P.style) cfg = WL.normalizeConfig(Object.assign({}, cfg, { widgetStyle: P.style }));
+if (P.fake) {
+  S.raw = 2323;
+  S.rawTime = Date.now();
+  S.yesterday = { date: '2026-09-19', adds: 1054 };
+  S.lastCelebrated = 2250;
+  cfg = WL.normalizeConfig(Object.assign({}, cfg, {
+    step: 250, showBar: true, showToday: true, barSeconds: 6, goalSeconds: 4,
+    widgetPos: 'top-center', widgetX: 0, widgetY: 0, widgetScale: 1,
+    goals: cfg.goals && cfg.goals.length ? cfg.goals : [
+      { n: 5000, text: 'Stream z układania lego' },
+      { n: 15000, text: 'Odcinek na youtube w stylu Książula i test żarcia z IKEI' },
+    ],
+  }));
+}
+
+if (P.topic && !P.fake) {
   bus = new WL.Bus({ server: P.server, topic: P.topic, onMessage, onState: () => renderInfo() });
   bus.connect();
   publishStatusSoon(3000);

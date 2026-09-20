@@ -197,9 +197,15 @@
         <div id="goalsList" class="grid"></div>
         <div class="btns" style="margin-top:10px"><button type="button" id="addGoal">+ Dodaj cel</button></div>
         <div class="sub" style="margin-top:8px">Np. <b>5000</b> = <b>nowa gra na streamie</b>. Cele przewijają się w widgecie zamiast wiersza „CEL / JESZCZE”, a po zdobyciu robią się zielone. Maksymalnie 12 celów.</div>
-        <label class="f" style="margin-top:12px">Zmiana celu co ile sekund
-          <input type="number" name="goalSeconds" min="2" max="60" step="1" inputmode="numeric">
-        </label>
+        <div class="grid two" style="margin-top:12px">
+          <label class="f">Pasek widoczny przez (sekundy)
+            <input type="number" name="barSeconds" min="3" max="600" step="5" inputmode="numeric">
+          </label>
+          <label class="f">Jeden cel widoczny przez (sekundy)
+            <input type="number" name="goalSeconds" min="3" max="600" step="1" inputmode="numeric">
+          </label>
+        </div>
+        <div class="sub" style="margin-top:8px">Ramka ma stały rozmiar: najpierw pasek, potem kolejny cel, i tak w kółko.</div>
       </section>
 
       <section class="card">
@@ -231,10 +237,27 @@
 
       <section class="card">
         <h2>WIDGET NA STREAMIE</h2>
+        <label class="f" style="margin-bottom:12px">Styl ramki
+          <select name="widgetStyle">
+            <option value="pixel">Pixel-art (dotychczasowy)</option>
+            <option value="modern">Nowoczesny ciemny</option>
+            <option value="glass">Szkło</option>
+            <option value="neon">Neon</option>
+            <option value="minimal">Minimalny, bez ramki</option>
+            <option value="paper">Karteczka jak w logo</option>
+            <option value="arcade">Automat arcade</option>
+            <option value="terminal">Terminal</option>
+            <option value="sunset">Gradient</option>
+            <option value="outline">Sam kontur</option>
+            <option value="light">Jasna karta</option>
+            <option value="vhs">VHS</option>
+          </select>
+          <span class="hint">Zmiana widać od razu w OBS, bez przeładowania.</span>
+        </label>
         <div class="grid two">
           <label class="check"><input type="checkbox" name="showBar"> Pasek postępu do progu</label>
           <label class="check"><input type="checkbox" name="showToday"> Licznik „+X dziś”</label>
-          <label class="f">Licznik „+X dziś”
+          <label class="f">Gdzie licznik dziś
             <select name="todayPos">
               <option value="below">Pod paskiem</option>
               <option value="above">Nad paskiem</option>
@@ -455,8 +478,8 @@ function start() {
       const [n, t] = row.querySelectorAll('input');
       n.value = g.n || '';
       t.value = g.text || '';
-      n.addEventListener('input', () => { goals[i].n = Number(n.value) || 0; touchGoals(); });
-      t.addEventListener('input', () => { goals[i].text = t.value; touchGoals(); });
+      n.addEventListener('input', () => { if (goals[i]) { goals[i].n = Number(n.value) || 0; touchGoals(); } });
+      t.addEventListener('input', () => { if (goals[i]) { goals[i].text = t.value; touchGoals(); } });
       row.querySelector('.del').addEventListener('click', () => { goals.splice(i, 1); renderGoals(true); touchGoals(); });
       list.appendChild(row);
     });
@@ -469,14 +492,19 @@ function start() {
   }
   $('addGoal').addEventListener('click', () => {
     if (goals.length >= 12) return toast('Maksymalnie 12 celów');
+    dirty = true;   // żeby przychodząca konfiguracja nie skasowała nowego wiersza
     goals.push({ n: '', text: '' });
     renderGoals(true);
     $('goalsList').querySelector('.goalrow:last-child input').focus();
   });
 
+  function listFocused() { return $('goalsList').contains(document.activeElement); }
   function fillForm(cfg) {
-    goals = (cfg.goals || []).map((g) => ({ n: g.n, text: g.text }));
-    renderGoals();
+    // w trakcie pisania nie ruszamy listy celów – inaczej wiersze znikają pod palcami
+    if (!dirty && !listFocused()) {
+      goals = (cfg.goals || []).map((g) => ({ n: g.n, text: g.text }));
+      renderGoals();
+    }
     for (const el of form.elements) {
       if (!el.name || !(el.name in cfg) || el === document.activeElement) continue;
       if (el.type === 'checkbox') el.checked = !!cfg[el.name];
@@ -499,8 +527,9 @@ function start() {
   const PREV = { w: 480, h: 270 };   // widget w układzie 1920×1080
   function widgetSize() {
     const c = readForm();
-    const w = (c.showBar ? 480 : 240) * c.widgetScale;
-    const h = ((c.showBar ? 150 : 0) + (c.showToday ? (c.todayPos === 'left' || c.todayPos === 'right' ? 0 : 60) : 0) || 60) * c.widgetScale;
+    const frame = c.showBar || (c.goals || []).length > 0;
+    const w = (frame ? 640 : 240) * c.widgetScale;
+    const h = ((frame ? 140 : 0) + (c.showToday && !(c.todayPos === 'left' || c.todayPos === 'right') ? 58 : 0) || 58) * c.widgetScale;
     return { w, h };
   }
   function anchorPoint(c, size) {

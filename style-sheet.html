@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><title>Style ramki – przegląd</title>
+<style>
+ body { margin:0; background:#101318 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="20" height="20" fill="%23171b22"/><rect x="20" y="20" width="20" height="20" fill="%23171b22"/></svg>'); color:#cfd8e3; font:13px/1.4 system-ui; }
+ .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; padding:10px; }
+ .cell { position:relative; height:128px; overflow:hidden; border:1px solid #2a313c; border-radius:6px; }
+ .cell span { position:absolute; left:6px; top:4px; z-index:2; font:11px system-ui; color:#9fb0c4; }
+ iframe { width:1920px; height:1080px; border:0; position:absolute; left:50%; top:-14px; transform:translateX(-50%) scale(.58); transform-origin:top center; }
+</style></head><body>
+<div class="grid" id="g"></div>
+<script>
+const styles=['pixel','modern','glass','neon','minimal','paper','arcade','terminal','sunset','outline','light','vhs'];
+document.getElementById('g').innerHTML = styles.map(s =>
+ `<div class="cell"><span>${s}</span><iframe src="overlay.html?v=${Date.now()}#fake=1&style=${s}&topic=x"></iframe></div>`).join('');
+</script></body></html>
