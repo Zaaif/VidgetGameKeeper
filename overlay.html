@@ -72,6 +72,34 @@
   .tape.tl { left: -44px; top: -22px; transform: rotate(-32deg); }
   .tape.br { right: -44px; bottom: -18px; transform: rotate(-32deg); }
 
+  /* ---------- animacja zdobycia celu ---------- */
+  #goalAlert { position: absolute; inset: 0; z-index: 4; }
+  #goalBox { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  .gdim { position: absolute; inset: -200px -400px; opacity: 0;
+    background: radial-gradient(closest-side, rgba(6,26,12,.72) 0%, rgba(8,30,14,.45) 45%, rgba(8,30,14,0) 100%); }
+  .gwrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .gcard { position: relative; display: flex; align-items: center; gap: 46px; opacity: 0;
+    padding: 46px 70px; background: linear-gradient(160deg, #10281a 0%, #0a1a10 100%);
+    border: 6px solid #6dff87; border-radius: 26px;
+    box-shadow: 0 0 60px rgba(109,255,135,.35), inset 0 0 40px rgba(109,255,135,.12), 0 22px 0 rgba(0,0,0,.35); }
+  .gcheck { position: relative; width: 190px; height: 190px; flex: none; border: 10px solid #6dff87; border-radius: 22px;
+    background: rgba(109,255,135,.08); box-shadow: inset 0 0 24px rgba(109,255,135,.25); }
+  .gcheck svg { position: absolute; inset: -18px; width: calc(100% + 36px); height: calc(100% + 36px); overflow: visible; }
+  .gcheck path { stroke: #6dff87; stroke-width: 26; stroke-linecap: round; stroke-linejoin: round; fill: none;
+    filter: drop-shadow(0 0 12px rgba(109,255,135,.8)); stroke-dasharray: 300; stroke-dashoffset: 300; }
+  .gtexts { display: flex; flex-direction: column; gap: 14px; max-width: 1080px; }
+  .glabel { font-size: 34px; letter-spacing: 6px; color: #6dff87; }
+  .gnumber { font-size: 72px; color: #fff; text-shadow: 0 6px 0 #0c3b1c; white-space: nowrap; }
+  .gnumber i { font-size: .45em; font-style: normal; color: #b8ffc9; margin-left: 14px; }
+  .gdesc { font-size: 40px; line-height: 1.35; color: var(--cream); max-width: 1020px; }
+  .gline { display: block; height: 8px; width: 0; margin-top: 12px; background: #6dff87; box-shadow: 0 0 14px rgba(109,255,135,.8); }
+  .gstamp { position: absolute; right: -40px; top: -46px; padding: 12px 26px; opacity: 0;
+    font-family: 'Patrick Hand', cursive; font-size: 54px; letter-spacing: 3px; color: #ff4d6d;
+    border: 8px solid #ff4d6d; border-radius: 12px; transform: rotate(-14deg);
+    box-shadow: 0 0 22px rgba(255,77,109,.5); background: rgba(30,8,14,.55); }
+  .gflash { position: absolute; inset: -140px -240px; opacity: 0; mix-blend-mode: screen;
+    background: radial-gradient(closest-side, rgba(180,255,200,.95) 0%, rgba(109,255,135,.5) 45%, transparent 100%); }
+
   /* ---------- widget ---------- */
   #widget { position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 14px; }
   #widget[hidden] { display: none; }
@@ -348,6 +376,25 @@
    </div>
   </div>
 
+  <div id="goalAlert" hidden>
+   <div id="goalBox">
+    <div class="gdim" id="gDim"></div>
+    <div class="gwrap" id="gShaker">
+      <div class="gcard" id="gCard">
+        <div class="gcheck" id="gCheck"><svg viewBox="0 0 100 100"><path d="M18 52 L42 76 L84 22"/></svg></div>
+        <div class="gtexts">
+          <div class="glabel" id="gLabel">CEL ZDOBYTY!</div>
+          <div class="gnumber" id="gNum">0</div>
+          <div class="gdesc" id="gDesc">—</div>
+          <i class="gline" id="gLine"></i>
+        </div>
+        <div class="gstamp" id="gStamp">ZROBIONE</div>
+      </div>
+    </div>
+    <div class="gflash" id="gFlash"></div>
+   </div>
+  </div>
+
   <canvas id="fx" width="480" height="270"></canvas>
 </div>
 <div id="info" hidden></div>
@@ -382,8 +429,10 @@ let cfgTime = (savedCfg && savedCfg.time) || 0;
 const S = Object.assign({
   raw: null, rawTime: 0, today: null, yesterday: null,
   lastCelebrated: null, pending: null, pendingFrom: null,
-  lastPlayed: null, streamStartedAt: null,
+  lastPlayed: null, streamStartedAt: null, goalsDone: [], pendingGoals: [],
 }, WL.store.get(KEY_STATE, {}));
+if (!Array.isArray(S.goalsDone)) S.goalsDone = [];
+if (!Array.isArray(S.pendingGoals)) S.pendingGoals = [];
 let playing = false;
 let streamKnown = false;
 let streaming = false;
@@ -399,17 +448,41 @@ function evaluate() {
   if (t == null) return;
   const tier = WL.tierOf(t, cfg.step);
   if (S.lastCelebrated == null) {
-    // pierwsze uruchomienie: bieżący próg uznajemy za już świętowany
+    // pierwsze uruchomienie: bieżący próg i zdobyte już cele uznajemy za zaliczone
     S.lastCelebrated = tier;
+    evaluateGoals(true);
     saveState();
     return;
   }
+  evaluateGoals(false);
   if (tier > S.lastCelebrated && (S.pending == null || tier > S.pending)) {
     if (S.pending == null) S.pendingFrom = S.lastCelebrated;
     S.pending = tier;
     saveState();
     publishStatusSoon();
   }
+}
+
+// Cele: zdobycie nowego celu trafia do kolejki. `silent` oznacza, że cel już był
+// zdobyty wcześniej (np. świeżo dopisany w panelu) i nie należy go świętować.
+function evaluateGoals(silent) {
+  const t = total();
+  if (t == null) return;
+  for (const g of cfg.goals || []) {
+    if (t < g.n) continue;
+    if (S.goalsDone.includes(g.n) || S.pendingGoals.some((p) => p.n === g.n)) continue;
+    if (silent || !cfg.goalAlertEnabled) S.goalsDone.push(g.n);
+    else S.pendingGoals.push({ n: g.n, text: g.text });
+  }
+  saveState();
+}
+
+function playGoalNext() {
+  if (!S.pendingGoals.length || playing) return;
+  const g = S.pendingGoals.shift();
+  if (!S.goalsDone.includes(g.n)) S.goalsDone.push(g.n);
+  saveState();
+  playGoalAlert(g);
 }
 
 // Zmiana progu/korekty nie powinna odpalać animacji za coś, co już było.
@@ -441,7 +514,10 @@ function tick() {
     lastGateCode = g.code;
     if (S.pending != null) publishStatusSoon();
   }
-  if (S.pending != null && !playing && g.ok) playPending();
+  if (!playing && g.ok) {
+    if (S.pending != null) playPending();
+    else if (S.pendingGoals.length) playGoalNext();
+  }
   renderInfo();
 }
 
@@ -709,6 +785,27 @@ const Sfx = (() => {
       const t = now();
       ['G6', 'E6', 'C6', 'G5'].forEach((n, i) => tone(NOTE[n], t + i * 0.06, 0.08, { v: 0.1 }));
     },
+    // cel: miękki dzwonek zamiast monet
+    ding() {
+      if (!ensure()) return;
+      const t = now();
+      tone(880, t, 0.5, { type: 'triangle', v: 0.22 });
+      tone(1320, t + 0.02, 0.6, { type: 'sine', v: 0.16 });
+    },
+    stamp() {
+      if (!ensure()) return;
+      const t = now();
+      tone(110, t, 0.28, { type: 'sine', v: 0.45, f2: 45 });
+      noise(t, 0.22, { v: 0.32, freq: 700, type: 'lowpass' });
+    },
+    goalDone() {
+      if (!ensure()) return;
+      const t = now();
+      ['C5', 'E5', 'G5', 'B5', 'C6', 'E6'].forEach((n, i) => tone(NOTE[n], t + i * 0.085, 0.5, { type: 'triangle', v: 0.16 }));
+      tone(NOTE.C6, t + 0.6, 1.3, { type: 'sine', v: 0.12 });
+      tone(NOTE.G5, t + 0.6, 1.3, { type: 'triangle', v: 0.1 });
+      noise(t + 0.55, 1.1, { v: 0.14, freq: 7000, type: 'highpass' });
+    },
   };
 })();
 
@@ -762,6 +859,16 @@ const FX = (() => {
       confetti(cx, cy, Math.cos(a) * s, Math.sin(a) * s - 60);
     }
     for (let i = 0; i < 24; i++) spark(cx + (Math.random() - 0.5) * 260, cy + (Math.random() - 0.5) * 120);
+  }
+  function cheer(cx, cy) {
+    const green = ['#6dff87', '#2fe35f', '#ffd35e', '#ffffff', '#b8ffc9'];
+    for (let i = 0; i < 90; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 170;
+      const p = { k: 'conf', x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70, g: 95, life: 4,
+        c: green[(Math.random() * green.length) | 0], ph: Math.random() * 6 };
+      add(p);
+    }
+    for (let i = 0; i < 30; i++) spark(cx + (Math.random() - 0.5) * 300, cy + (Math.random() - 0.5) * 160);
   }
   function sparkles(cx, cy, w, h, n = 14) {
     for (let i = 0; i < n; i++) spark(cx + (Math.random() - 0.5) * w, cy + (Math.random() - 0.5) * h);
@@ -832,7 +939,7 @@ const FX = (() => {
     if (parts.length || now < rainUntil) raf = requestAnimationFrame(loop);
     else { raf = null; g.clearRect(0, 0, W, H); }
   }
-  return { burst, sparkles, rain, clear, configure, pt };
+  return { burst, sparkles, cheer, rain, clear, configure, pt };
 })();
 
 // ---------- animacja przebicia progu ----------
@@ -896,11 +1003,11 @@ const ALERT_ORIGIN = {
   'bottom-right': [1, 1], 'top-center': [0.5, 0], 'bottom-center': [0.5, 1],
 };
 let alertLayout = { s: 1, ox: 960, oy: 540 };
-function layoutAlert() {
+function layoutAlert(boxId = 'alertBox') {
   const [fx, fy] = ALERT_ORIGIN[cfg.alertPos] || ALERT_ORIGIN.center;
   const s = cfg.alertScale;
   const ox = 1920 * fx, oy = 1080 * fy;
-  const box = $('alertBox');
+  const box = $(boxId);
   box.style.transformOrigin = `${ox}px ${oy}px`;
   box.style.transform = `scale(${s})`;
   alertLayout = { s, ox, oy };
@@ -1023,6 +1130,88 @@ async function playAlert(tier, from) {
   return true;
 }
 
+// ---------- animacja zdobycia celu ----------
+async function playGoalAlert(goal) {
+  if (playing) return false;
+  playing = true;
+  publishStatusSoon();
+  try {
+    await fontsReady;
+    const root = $('goalAlert');
+    const els = ['gDim', 'gCard', 'gCheck', 'gStamp', 'gFlash', 'gShaker', 'gLine'].map($);
+    els.forEach((e) => e.getAnimations().forEach((a) => a.cancel()));
+    const [dim, card, check, stamp, flash, shaker, line] = els;
+    const tick = check.querySelector('path');
+    tick.getAnimations().forEach((a) => a.cancel());
+
+    $('gLabel').textContent = cfg.goalAlertLabel;
+    $('gStamp').textContent = cfg.goalAlertStamp;
+    $('gNum').innerHTML = `${WL.fmt(goal.n)}<i>${cfg.unitLabel}</i>`;
+    $('gNum').style.fontSize = '72px';
+    if ($('gNum').scrollWidth > 1020) $('gNum').style.fontSize = Math.floor(72 * 1020 / $('gNum').scrollWidth) + 'px';
+    $('gDesc').textContent = (goal.text || '').toUpperCase();
+    layoutAlert('goalBox');
+    root.hidden = false;
+    // dłuższy opis ma się zmieścić w dwóch liniach
+    const desc = $('gDesc');
+    for (let size = 40; size >= 20; size -= 2) {
+      desc.style.fontSize = size + 'px';
+      if (desc.scrollHeight <= Math.round(size * 1.35 * 2) + 2) break;
+    }
+
+    Sfx.ding();
+    anim(dim, [{ opacity: 0 }, { opacity: 1 }], { duration: 380 });
+    anim(card, [
+      { opacity: 0, transform: 'translateY(140px) scale(.92)' },
+      { opacity: 1, transform: 'translateY(-10px) scale(1.03)', offset: 0.65 },
+      { opacity: 1, transform: 'translateY(0) scale(1)' },
+    ], { duration: 560, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
+
+    await wait(420);
+    anim(tick, [{ strokeDashoffset: 300 }, { strokeDashoffset: 0 }], { duration: 420, easing: 'cubic-bezier(.4,0,.2,1)' });
+    anim(check, [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 520 });
+
+    await wait(480);
+    Sfx.stamp();
+    anim(stamp, [
+      { opacity: 0, transform: 'rotate(-34deg) scale(2.6)' },
+      { opacity: 1, transform: 'rotate(-11deg) scale(.94)', offset: 0.7 },
+      { opacity: 1, transform: 'rotate(-14deg) scale(1)' },
+    ], { duration: 260, easing: 'steps(6, end)' });
+    flash.animate([{ opacity: 0 }, { opacity: 0.75, offset: 0.2 }, { opacity: 0 }], { duration: 420 });
+    const kf = [];
+    for (let i = 0; i < 8; i++) {
+      const k = 22 * (1 - i / 8);
+      kf.push({ transform: `translate(${Math.round((Math.random() - 0.5) * 2 * k)}px, ${Math.round((Math.random() - 0.5) * 2 * k)}px)` });
+    }
+    kf.push({ transform: 'translate(0,0)' });
+    shaker.animate(kf, { duration: 360, easing: 'steps(1, end)' });
+    Sfx.goalDone();
+    FX.cheer(...fxAtEl(card));
+
+    await wait(260);
+    anim(line, [{ width: '0%' }, { width: '100%' }], { duration: 520, easing: 'cubic-bezier(.3,0,.2,1)' });
+    FX.sparkles(...fxAtEl(check), 120, 120, 12);
+
+    await wait(4600);
+    Sfx.exit();
+    anim(card, [{ transform: 'translateY(0)', opacity: 1 }, { transform: 'translateY(120px)', opacity: 0 }],
+      { duration: 460, easing: 'cubic-bezier(.4,0,.8,.4)' });
+    anim(dim, [{ opacity: 1 }, { opacity: 0 }], { duration: 640, delay: 120 });
+    await wait(820);
+    root.hidden = true;
+    els.forEach((e) => e.getAnimations().forEach((a) => a.cancel()));
+  } catch (e) {
+    console.error(e);
+    $('goalAlert').hidden = true;
+  } finally {
+    playing = false;
+    renderWidget();
+    publishStatusSoon();
+  }
+  return true;
+}
+
 // ---------- komunikacja ----------
 let bus = null;
 let statusTimer = null;
@@ -1035,6 +1224,7 @@ function statusPayload() {
     st: {
       raw: S.raw, total: total(), countTime: S.rawTime, today: S.today, yesterday: S.yesterday,
       lastCelebrated: S.lastCelebrated, pending: S.pending, lastPlayed: S.lastPlayed,
+      goalsDone: S.goalsDone.length, pendingGoals: S.pendingGoals.map((g) => g.n),
       playing, inOBS, streamKnown, streaming, streamStartedAt: S.streamStartedAt,
       gate: { ok: g.ok, code: g.code, text: g.text, readyAt: g.readyAt || null },
       preview: P.preview,
@@ -1074,6 +1264,7 @@ function onMessage(m, meta) {
       saveCfg();
       if (old.step !== cfg.step || old.offset !== cfg.offset) rebaseline();
       evaluate();
+      evaluateGoals(true);   // cele dopisane w panelu, już osiągnięte, nie odpalają animacji
       renderWidget();
       publishStatusSoon();
       break;
@@ -1094,6 +1285,14 @@ function onCommand(m) {
       const tier = Number(m.tier) || (t != null ? WL.tierOf(t, cfg.step) + cfg.step : cfg.step * 10);
       Sfx.ensure();
       playAlert(tier, tier - cfg.step);
+      break;
+    }
+    case 'test-goal': {
+      const goals = cfg.goals || [];
+      const g = (m.goal && m.goal.n) ? m.goal
+        : goals.find((x) => t == null || x.n > t) || goals[0] || { n: 5000, text: 'przykładowy cel' };
+      Sfx.ensure();
+      playGoalAlert(g);
       break;
     }
     case 'replay':

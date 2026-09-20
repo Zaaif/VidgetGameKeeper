@@ -206,6 +206,12 @@
           </label>
         </div>
         <div class="sub" style="margin-top:8px">Ramka ma stały rozmiar: najpierw pasek, potem kolejny cel, i tak w kółko.</div>
+        <label class="check" style="margin-top:10px"><input type="checkbox" name="goalAlertEnabled"> Animacja po zdobyciu celu</label>
+        <div class="grid two">
+          <label class="f">Napis nad celem <input type="text" name="goalAlertLabel" maxlength="40"></label>
+          <label class="f">Pieczątka <input type="text" name="goalAlertStamp" maxlength="20"></label>
+        </div>
+        <div class="btns" style="margin-top:10px"><button type="button" class="pink" id="goalTestBtn">▶ Test animacji celu</button></div>
       </section>
 
       <section class="card">
@@ -659,7 +665,7 @@ function start() {
   // ---------- polecenia ----------
   const CMD_LABEL = {
     test: 'Test animacji', replay: 'Powtórka', 'play-pending': 'Odpalam kolejkę', 'clear-pending': 'Próg pominięty',
-    reset: 'Obecny próg zaliczony', reload: 'Przeładowuję overlay',
+    reset: 'Obecny próg zaliczony', reload: 'Przeładowuję overlay', 'test-goal': 'Test animacji celu',
   };
   async function cmd(name, extra) {
     try {
@@ -676,6 +682,10 @@ function start() {
     cmd(b.dataset.cmd);
   }));
   $('testBtn').onclick = () => cmd('test', { tier: Number($('testTier').value) || null });
+  $('goalTestBtn').onclick = async () => {
+    if (dirty) { clearTimeout(sendTimer); await sendConfig(); }
+    cmd('test-goal');
+  };
   // podgląd po zmianie pozycji: najpierw wyślij niezapisane ustawienia, potem test
   $('previewBtn').onclick = async () => {
     if (dirty) { clearTimeout(sendTimer); await sendConfig(); }
@@ -770,9 +780,11 @@ function start() {
 
     // kolejka
     const pending = st && st.pending;
-    $('queueCard').hidden = pending == null;
-    if (pending != null) {
-      $('qTier').textContent = WL.fmt(pending) + ' ' + cfg.unitLabel;
+    const pendingGoals = (st && st.pendingGoals) || [];
+    $('queueCard').hidden = pending == null && !pendingGoals.length;
+    if (pending != null || pendingGoals.length) {
+      $('qTier').textContent = (pending != null ? WL.fmt(pending) + ' ' + cfg.unitLabel : '')
+        + (pendingGoals.length ? (pending != null ? ' + ' : '') + 'CEL ' + pendingGoals.map(WL.fmt).join(', ') : '');
       let g = st.gate ? st.gate.text : '';
       if (st.gate && st.gate.code === 'uptime' && st.gate.readyAt) g += ` · poleci za ${hms(st.gate.readyAt - Date.now())}`;
       if (st.gate && st.gate.ok) g = 'Leci za chwilę…';
