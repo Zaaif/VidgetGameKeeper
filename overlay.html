@@ -324,8 +324,22 @@
     --wtoday-bg: #ff0050; --wtoday-color: #fff; --wtoday-size: 14px; --wtoday-radius: 2px; --wtoday-shadow: none;
     --wdeco: repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 2px, transparent 2px 4px);
   }
+  .wfoot { display: flex; align-items: center; gap: 14px; width: 640px; }
+  #widget.today-below .wfoot { justify-content: space-between; }
+  #widget.pos-top-right .wfoot, #widget.pos-bottom-right .wfoot { flex-direction: row-reverse; }
+  #widget.pos-top-center .wfoot, #widget.pos-bottom-center .wfoot { justify-content: space-between; }
+  .wfoot:empty { display: none; }
   .today { font-family: var(--wfont); font-size: var(--wtoday-size); font-weight: 700; color: var(--wtoday-color);
     background: var(--wtoday-bg); border-radius: var(--wtoday-radius); padding: 10px 14px 9px; box-shadow: var(--wtoday-shadow); }
+  /* plakietka w barwach Steama */
+  .steamtag { display: flex; align-items: center; gap: 10px; font-family: var(--wfont); font-size: var(--wtoday-size);
+    font-weight: 700; letter-spacing: 1px; color: #66c0f4; padding: 9px 14px 8px; border-radius: var(--wtoday-radius);
+    background: linear-gradient(180deg, #2a475e, #1b2838 60%, #171a21);
+    box-shadow: inset 0 0 0 1px #3d6b8e, 0 6px 14px rgba(0,0,0,.35); white-space: nowrap; }
+  .steamtag::before { content: ''; width: 12px; height: 12px; border-radius: 50%; flex: none;
+    background: radial-gradient(circle at 35% 35%, #bfe3ff 0 25%, #66c0f4 26% 60%, #1a9fff 61% 100%);
+    box-shadow: 0 0 8px rgba(102,192,244,.7); }
+  .steamtag[hidden] { display: none; }
   .today[hidden] { display: none; }
   .floater { position: absolute; right: 0; top: -6px; font-size: 22px; color: #7dff8a; text-shadow: 0 3px 0 #0b3a12; pointer-events: none; }
 
@@ -348,7 +362,10 @@
       </div>
       <div class="wscreen wgoal" id="wGoal"><span class="gn"></span><span class="gt"></span></div>
     </div>
-    <div class="today" id="wToday" hidden></div>
+    <div class="wfoot" id="wFoot">
+      <div class="today" id="wToday" hidden></div>
+      <div class="steamtag" id="wSteam" hidden></div>
+    </div>
   </div>
 
   <div id="alert" hidden>
@@ -573,7 +590,7 @@ function renderWidget() {
   const goals = cfg.goals || [];
   const showFrame = (cfg.showBar || goals.length > 0) && t != null;
   const showToday = cfg.showToday && !!todayTxt;
-  w.hidden = !(showFrame || showToday);
+  w.hidden = !(showFrame || showToday || cfg.showSteamTag);
   w.className = `pos-${cfg.widgetPos} today-${cfg.todayPos} s-${cfg.widgetStyle}`;
   // dokładna pozycja: margines od wybranego rogu plus przesunięcie z panelu
   const M = 44, st = w.style;
@@ -588,6 +605,11 @@ function renderWidget() {
   $('wbox').hidden = !showFrame;
   $('wToday').hidden = !showToday;
   $('wToday').textContent = todayTxt || '';
+  const showSteam = cfg.showSteamTag && !!cfg.steamTagText.trim();
+  $('wSteam').hidden = !showSteam;
+  $('wSteam').textContent = cfg.steamTagText;
+  $('wFoot').style.display = (showToday || showSteam) ? '' : 'none';
+  $('wFoot').style.width = showFrame ? '640px' : 'auto';
   $('wTitle').textContent = cfg.widgetTitle;
   if (t == null) return;
 
