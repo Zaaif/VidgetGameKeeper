@@ -19,6 +19,11 @@
     showToday: true,        // „+123 dziś”
     widgetPos: 'top-right',
     widgetScale: 1,
+    widgetX: 0,             // przesunięcie względem rogu: + w prawo
+    widgetY: 0,             // + w dół
+    goals: [],              // [{n: 5000, text: 'nowa gra na streamie'}] – przewijają się w widgecie
+    goalSeconds: 6,         // co ile sekund zmienia się pokazywany cel
+    todayPos: 'below',      // gdzie licznik „+X dziś” względem paska
     alertPos: 'center',     // gdzie leci animacja progu
     alertScale: 1,          // 1 = cały ekran
     logoScale: 1,           // wielkość loga względem reszty animacji
@@ -40,11 +45,20 @@
     c.volume = Math.min(1, Math.max(0, Number(c.volume)));
     if (!Number.isFinite(c.volume)) c.volume = DEFAULT_CONFIG.volume;
     c.widgetScale = Math.min(3, Math.max(0.3, Number(c.widgetScale) || 1));
+    c.widgetX = Math.max(-1900, Math.min(1900, Math.round(Number(c.widgetX) || 0)));
+    c.widgetY = Math.max(-1060, Math.min(1060, Math.round(Number(c.widgetY) || 0)));
     c.alertScale = Math.min(1.2, Math.max(0.25, Number(c.alertScale) || 1));
     c.logoScale = Math.min(2.5, Math.max(0.5, Number(c.logoScale) || 1));
     for (const k of ['requireStream', 'alertsEnabled', 'showBar', 'showToday']) c[k] = !!c[k];
     for (const k of ['headline', 'subtitle', 'unitLabel', 'widgetTitle']) c[k] = String(c[k] ?? DEFAULT_CONFIG[k]).slice(0, 80);
     if (!POSITIONS.includes(c.widgetPos)) c.widgetPos = DEFAULT_CONFIG.widgetPos;
+    if (!['below', 'above', 'left', 'right'].includes(c.todayPos)) c.todayPos = DEFAULT_CONFIG.todayPos;
+    c.goalSeconds = Math.min(60, Math.max(2, Number(c.goalSeconds) || DEFAULT_CONFIG.goalSeconds));
+    c.goals = (Array.isArray(c.goals) ? c.goals : [])
+      .map((g) => ({ n: Math.round(Number(g && g.n)), text: String((g && g.text) || '').slice(0, 60) }))
+      .filter((g) => Number.isFinite(g.n) && g.n > 0)
+      .sort((a, b) => a.n - b.n)
+      .slice(0, 12);
     if (!POSITIONS.includes(c.alertPos) && c.alertPos !== 'center') c.alertPos = DEFAULT_CONFIG.alertPos;
     return c;
   }

@@ -70,6 +70,18 @@
   .check { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 15px; cursor: pointer; }
   .check input { width: 22px; height: 22px; accent-color: var(--orange); flex: none; }
   .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .goalrow { display: grid; grid-template-columns: 92px 1fr auto; gap: 8px; align-items: center; }
+  .goalrow input { min-width: 0; }
+  .goalrow .del { min-height: 40px; padding: 8px 12px; color: var(--red); }
+  .goalempty { color: var(--muted); font-size: 14px; }
+  .screen { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #1a1008;
+    border: 2px solid var(--line); border-radius: 8px; overflow: hidden; touch-action: none;
+    background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 12.5% 12.5%; }
+  .wproxy { position: absolute; display: flex; align-items: center; justify-content: center;
+    background: rgba(247,165,28,.85); color: #1b0e06; border: 2px solid var(--cream); border-radius: 3px;
+    font: 700 9px/1 system-ui, sans-serif; letter-spacing: .5px; cursor: grab; user-select: none; touch-action: none; }
+  .wproxy:active { cursor: grabbing; background: var(--orange-hi); }
 
   button { font: 600 15px system-ui, -apple-system, 'Segoe UI', sans-serif; border: 0; border-radius: 10px; padding: 12px 14px; cursor: pointer;
     background: var(--card-2); color: var(--text); border: 1px solid var(--line); min-height: 44px; }
@@ -181,6 +193,16 @@
       </section>
 
       <section class="card">
+        <h2>CELE</h2>
+        <div id="goalsList" class="grid"></div>
+        <div class="btns" style="margin-top:10px"><button type="button" id="addGoal">+ Dodaj cel</button></div>
+        <div class="sub" style="margin-top:8px">Np. <b>5000</b> = <b>nowa gra na streamie</b>. Cele przewijają się w widgecie zamiast wiersza „CEL / JESZCZE”, a po zdobyciu robią się zielone. Maksymalnie 12 celów.</div>
+        <label class="f" style="margin-top:12px">Zmiana celu co ile sekund
+          <input type="number" name="goalSeconds" min="2" max="60" step="1" inputmode="numeric">
+        </label>
+      </section>
+
+      <section class="card">
         <h2>ANIMACJA PROGU</h2>
         <div class="grid two">
           <label class="f">Gdzie na ekranie
@@ -212,6 +234,14 @@
         <div class="grid two">
           <label class="check"><input type="checkbox" name="showBar"> Pasek postępu do progu</label>
           <label class="check"><input type="checkbox" name="showToday"> Licznik „+X dziś”</label>
+          <label class="f">Licznik „+X dziś”
+            <select name="todayPos">
+              <option value="below">Pod paskiem</option>
+              <option value="above">Nad paskiem</option>
+              <option value="right">Po prawej</option>
+              <option value="left">Po lewej</option>
+            </select>
+          </label>
           <label class="f">Pozycja
             <select name="widgetPos">
               <option value="top-right">Prawy górny róg</option>
@@ -225,6 +255,17 @@
           <label class="f">Rozmiar <span class="hint" id="scaleVal"></span>
             <input type="range" name="widgetScale" min="0.5" max="2" step="0.05">
           </label>
+          <label class="f">Przesunięcie w bok (+ w prawo)
+            <input type="number" name="widgetX" step="5" inputmode="numeric">
+          </label>
+          <label class="f">Przesunięcie w pionie (+ w dół)
+            <input type="number" name="widgetY" step="5" inputmode="numeric">
+          </label>
+        </div>
+        <div class="sub" style="margin:10px 0 6px">Przeciągnij widget na podglądzie ekranu. Piksele liczone jak na ekranie 1920×1080.</div>
+        <div class="screen" id="posPreview"><div class="wproxy" id="posBox">WISHLISTY</div></div>
+        <div class="btns" style="margin-top:10px"><button type="button" class="small" id="posReset">Wyśrodkuj w rogu</button></div>
+        <div class="grid" hidden>
         </div>
       </section>
 
@@ -354,6 +395,7 @@ function start() {
   let dirty = false;
   let sentAt = 0;
   let sendTimer = null;
+  let goals = (saved && saved.cfg && saved.cfg.goals) || [];
 
   const bus = new WL.Bus({
     server: P.server,
@@ -393,7 +435,45 @@ function start() {
   }
 
   // ---------- formularz ----------
+  function renderGoals(force) {
+    const list = $('goalsList');
+    if (!force && list.contains(document.activeElement)) return;
+    list.innerHTML = '';
+    if (!goals.length) {
+      list.innerHTML = '<div class="goalempty">Brak celów – widget pokazuje wtedy zwykłe „CEL / JESZCZE”.</div>';
+      return;
+    }
+    goals.forEach((g, i) => {
+      const row = document.createElement('div');
+      row.className = 'goalrow';
+      row.innerHTML = '<input type="number" inputmode="numeric" min="1" step="1" aria-label="Liczba wishlist">'
+        + '<input type="text" maxlength="60" placeholder="co za to będzie" aria-label="Opis celu">'
+        + '<button type="button" class="del" aria-label="Usuń cel">✕</button>';
+      const [n, t] = row.querySelectorAll('input');
+      n.value = g.n || '';
+      t.value = g.text || '';
+      n.addEventListener('input', () => { goals[i].n = Number(n.value) || 0; touchGoals(); });
+      t.addEventListener('input', () => { goals[i].text = t.value; touchGoals(); });
+      row.querySelector('.del').addEventListener('click', () => { goals.splice(i, 1); renderGoals(true); touchGoals(); });
+      list.appendChild(row);
+    });
+  }
+  function touchGoals() {
+    dirty = true;
+    setSave('Zmiany niewysłane…');
+    clearTimeout(sendTimer);
+    sendTimer = setTimeout(sendConfig, 1200);
+  }
+  $('addGoal').addEventListener('click', () => {
+    if (goals.length >= 12) return toast('Maksymalnie 12 celów');
+    goals.push({ n: '', text: '' });
+    renderGoals(true);
+    $('goalsList').querySelector('.goalrow:last-child input').focus();
+  });
+
   function fillForm(cfg) {
+    goals = (cfg.goals || []).map((g) => ({ n: g.n, text: g.text }));
+    renderGoals();
     for (const el of form.elements) {
       if (!el.name || !(el.name in cfg) || el === document.activeElement) continue;
       if (el.type === 'checkbox') el.checked = !!cfg[el.name];
@@ -403,6 +483,7 @@ function start() {
   }
   function readForm() {
     const c = Object.assign({}, R.cfg || WL.DEFAULT_CONFIG);
+    c.goals = goals.filter((g) => Number(g.n) > 0).map((g) => ({ n: Number(g.n), text: g.text || '' }));
     for (const el of form.elements) {
       if (!el.name) continue;
       if (el.type === 'checkbox') c[el.name] = el.checked;
@@ -411,11 +492,75 @@ function start() {
     }
     return WL.normalizeConfig(c);
   }
+  // podgląd ekranu: przeciąganie widgetu ustawia przesunięcie w pikselach
+  const PREV = { w: 480, h: 270 };   // widget w układzie 1920×1080
+  function widgetSize() {
+    const c = readForm();
+    const w = (c.showBar ? 480 : 240) * c.widgetScale;
+    const h = ((c.showBar ? 150 : 0) + (c.showToday ? (c.todayPos === 'left' || c.todayPos === 'right' ? 0 : 60) : 0) || 60) * c.widgetScale;
+    return { w, h };
+  }
+  function anchorPoint(c, size) {
+    const M = 44;
+    const x = c.widgetPos.includes('left') ? M : c.widgetPos.includes('right') ? 1920 - M - size.w : (1920 - size.w) / 2;
+    const y = c.widgetPos.startsWith('top') ? M : 1080 - M - size.h;
+    return { x, y };
+  }
+  function drawPreview() {
+    const c = readForm();
+    const size = widgetSize();
+    const base = anchorPoint(c, size);
+    const box = $('posBox');
+    box.style.width = (size.w / 1920 * 100) + '%';
+    box.style.height = (size.h / 1080 * 100) + '%';
+    box.style.left = ((base.x + c.widgetX) / 1920 * 100) + '%';
+    box.style.top = ((base.y + c.widgetY) / 1080 * 100) + '%';
+  }
+  (() => {
+    const box = $('posBox'), screen = $('posPreview');
+    let drag = null;
+    const startDrag = (e) => {
+      const r = screen.getBoundingClientRect(), b = box.getBoundingClientRect();
+      drag = { dx: e.clientX - b.left, dy: e.clientY - b.top, r };
+      if (e.pointerId != null && box.setPointerCapture) box.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    };
+    const moveDrag = (e) => {
+      if (!drag) return;
+      const c = readForm(), size = widgetSize(), base = anchorPoint(c, size);
+      const k = 1920 / drag.r.width;
+      const x = Math.round((e.clientX - drag.dx - drag.r.left) * k);
+      const y = Math.round((e.clientY - drag.dy - drag.r.top) * k);
+      form.elements.widgetX.value = Math.max(-1900, Math.min(1900, Math.round((x - base.x) / 5) * 5));
+      form.elements.widgetY.value = Math.max(-1060, Math.min(1060, Math.round((y - base.y) / 5) * 5));
+      drawPreview();
+      dirty = true;
+      setSave('Zmiany niewysłane…');
+      clearTimeout(sendTimer);
+      sendTimer = setTimeout(sendConfig, 900);
+    };
+    const end = () => { drag = null; };
+    // pointer + mysz: niektóre przeglądarki i nakładki wysyłają tylko jedno z dwóch
+    box.addEventListener('pointerdown', startDrag);
+    box.addEventListener('pointermove', moveDrag);
+    box.addEventListener('pointerup', end);
+    box.addEventListener('pointercancel', end);
+    box.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', (e) => { if (e.buttons === 1) moveDrag(e); });
+    window.addEventListener('mouseup', end);
+    $('posReset').addEventListener('click', () => {
+      form.elements.widgetX.value = 0;
+      form.elements.widgetY.value = 0;
+      form.dispatchEvent(new Event('input'));
+    });
+  })();
+
   function updateLabels() {
     $('scaleVal').textContent = Math.round(Number(form.elements.widgetScale.value) * 100) + '%';
     if (document.activeElement !== $('volNum')) $('volNum').value = Math.round(Number(form.elements.volume.value) * 100);
     $('alertScaleVal').textContent = Math.round(Number(form.elements.alertScale.value) * 100) + '%';
     $('logoScaleVal').textContent = Math.round(Number(form.elements.logoScale.value) * 100) + '%';
+    drawPreview();
   }
   function setSave(text, cls) { const s = $('saveState'); s.textContent = text; s.className = 'save ' + (cls || ''); }
 

@@ -19,6 +19,7 @@
     --pink: #dc2a55;
   }
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  [hidden] { display: none !important; }
   body.preview { background: #24242c repeating-conic-gradient(#2c2c36 0 25%, #22222a 0 50%) 0 0 / 48px 48px; }
 
   #stage {
@@ -80,6 +81,10 @@
   #widget.pos-bottom-right { bottom: 44px; right: 44px; transform-origin: bottom right; align-items: flex-end; }
   #widget.pos-top-center   { top: 44px; left: 50%; transform-origin: top center; align-items: center; }
   #widget.pos-bottom-center{ bottom: 44px; left: 50%; transform-origin: bottom center; align-items: center; }
+  #widget.today-below { flex-direction: column; }
+  #widget.today-above { flex-direction: column-reverse; }
+  #widget.today-right { flex-direction: row; align-items: center; }
+  #widget.today-left  { flex-direction: row-reverse; align-items: center; }
   .wbox { position: relative; background: rgba(27,14,6,.9); padding: 18px 22px 16px; min-width: 460px; box-sizing: border-box;
     box-shadow: 0 -4px 0 0 var(--cream), 0 4px 0 0 var(--cream), -4px 0 0 0 var(--cream), 4px 0 0 0 var(--cream),
                 0 -8px 0 0 var(--ink), 0 8px 0 0 var(--ink), -8px 0 0 0 var(--ink), 8px 0 0 0 var(--ink),
@@ -94,6 +99,12 @@
   .wbar i.edge { animation: blink 0.9s steps(2, end) infinite; }
   @keyframes blink { 50% { background: #ffe9a8; } }
   .wsub { font-size: 14px; color: #d9bf9b; }
+  .wgoal { display: flex; align-items: baseline; gap: 10px; font-size: 14px; color: var(--cream); max-width: 560px;
+    transition: opacity .35s ease; white-space: nowrap; overflow: hidden; }
+  .wgoal .gn { color: var(--orange); }
+  .wgoal .gt { color: #e6cfae; text-overflow: ellipsis; overflow: hidden; }
+  .wgoal.done .gn, .wgoal.done .gt { color: #6dff87; }
+  .wgoal.done .gt { text-shadow: 0 0 10px rgba(109,255,135,.35); }
   .wsub b { color: var(--cream); font-weight: normal; }
   .today { font-size: 16px; color: #fff; background: var(--pink); padding: 10px 14px 9px; box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), 0 10px 0 0 rgba(0,0,0,.3); }
   .today[hidden] { display: none; }
@@ -113,7 +124,8 @@
     <div class="wbox" id="wbox">
       <div class="wrow"><span class="wtitle" id="wTitle">WISHLISTY</span><span class="wcount" id="wCount">0</span></div>
       <div class="wbar" id="wBar"></div>
-      <div class="wrow wsub"><span>CEL <b id="wNext">0</b></span><span>JESZCZE <b id="wLeft">0</b></span></div>
+      <div class="wrow wsub" id="wSub"><span>CEL <b id="wNext">0</b></span><span>JESZCZE <b id="wLeft">0</b></span></div>
+      <div class="wgoal" id="wGoal" hidden><span class="gn"></span><span class="gt"></span></div>
     </div>
     <div class="today" id="wToday" hidden></div>
   </div>
@@ -289,7 +301,15 @@ function renderWidget() {
   const showBar = cfg.showBar && t != null;
   const showToday = cfg.showToday && !!todayTxt;
   w.hidden = !(showBar || showToday);
-  w.className = 'pos-' + cfg.widgetPos;
+  w.className = `pos-${cfg.widgetPos} today-${cfg.todayPos}`;
+  // dokładna pozycja: margines od wybranego rogu plus przesunięcie z panelu
+  const M = 44, st = w.style;
+  st.left = st.right = st.top = st.bottom = st.marginLeft = '';
+  if (cfg.widgetPos.includes('left')) st.left = M + cfg.widgetX + 'px';
+  else if (cfg.widgetPos.includes('right')) st.right = M - cfg.widgetX + 'px';
+  else { st.left = '50%'; st.marginLeft = cfg.widgetX + 'px'; }
+  if (cfg.widgetPos.startsWith('top')) st.top = M + cfg.widgetY + 'px';
+  else st.bottom = M - cfg.widgetY + 'px';
   const center = cfg.widgetPos.endsWith('center') ? 'translateX(-50%) ' : '';
   w.style.transform = `${center}scale(${cfg.widgetScale})`;
   $('wbox').hidden = !showBar;
@@ -306,6 +326,20 @@ function renderWidget() {
   });
   $('wNext').textContent = WL.fmt(next);
   $('wLeft').textContent = WL.fmt(next - t);
+
+  // cele zastępują wiersz „CEL / JESZCZE” i przewijają się z przenikaniem
+  const goals = cfg.goals || [];
+  const key = JSON.stringify(goals);
+  $('wSub').hidden = goals.length > 0;
+  $('wGoal').hidden = goals.length === 0;
+  if (goals.length) {
+    if (key !== goalsKey) { goalIdx = 0; startGoalCycle(); }
+    showGoal(goalIdx, false);
+  } else {
+    clearInterval(goalTimer);
+    goalTimer = null;
+  }
+  goalsKey = key;
 
   if (shownTotal == null) { shownTotal = t; $('wCount').textContent = WL.fmt(t); return; }
   if (t !== shownTotal) animateCount(shownTotal, t);
@@ -332,6 +366,33 @@ function floater(text) {
   $('wCount').appendChild(f);
   f.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: 'translateY(-60px)', opacity: 0 }],
     { duration: 1600, easing: 'steps(12, end)' }).onfinish = () => f.remove();
+}
+
+let goalIdx = 0, goalTimer = null, goalsKey = null;
+function showGoal(i, animate) {
+  const goals = cfg.goals || [];
+  if (!goals.length) return;
+  goalIdx = ((i % goals.length) + goals.length) % goals.length;
+  const g = goals[goalIdx];
+  const el = $('wGoal');
+  const apply = () => {
+    const t = total();
+    const done = t != null && t >= g.n;
+    el.classList.toggle('done', done);
+    el.querySelector('.gn').textContent = (done ? '✔ ' : '') + WL.fmt(g.n);
+    el.querySelector('.gt').textContent = g.text ? '· ' + g.text.toUpperCase() : '';
+    el.style.opacity = '1';
+  };
+  if (animate) {
+    el.style.opacity = '0';
+    setTimeout(apply, 350);
+  } else apply();
+}
+function startGoalCycle() {
+  clearInterval(goalTimer);
+  goalTimer = null;
+  if ((cfg.goals || []).length < 2) return;
+  goalTimer = setInterval(() => showGoal(goalIdx + 1, true), cfg.goalSeconds * 1000);
 }
 
 function todayText() {
