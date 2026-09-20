@@ -75,6 +75,8 @@
     return {
       topic: (get('topic') || '').trim(),
       server: (get('server') || 'https://ntfy.sh').replace(/\/+$/, ''),
+      server2: (get('server2') || BACKUP_SERVER).replace(/\/+$/, ''),   // zapasowy; 'off' wyłącza
+      token: (get('token') || '').trim(),
       debug: get('debug') === '1',
       preview: get('preview') === '1',
       style: get('style') || '',      // podgląd wybranego stylu ramki
@@ -115,77 +117,100 @@
     },
   };
 
-  // Subskrypcja SSE z ręcznym wznawianiem od ostatniego id (żeby po zerwaniu
-  // nie odtwarzać całego 12-godzinnego cache) i deduplikacją.
+  // Łączność: słuchamy na kilku serwerach naraz, a wysyłamy tym, który działa.
+  // Dzięki temu wyczerpany limit jednego serwera nie blokuje sterowania.
+  const BACKUP_SERVER = 'https://ntfy.envs.net';
+
+  function authQuery(token) {
+    if (!token) return '';
+    const b64 = btoa('Bearer ' + token).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return '&auth=' + b64;
+  }
+
   class Bus {
-    constructor({ server, topic, onMessage, onState }) {
-      this.server = server;
+    constructor({ servers, server, topic, token, onMessage, onState }) {
+      this.servers = (servers || [server]).filter(Boolean);
       this.topic = topic;
+      this.token = token || '';
       this.onMessage = onMessage;
       this.onState = onState || (() => {});
-      this.lastId = null;
+      this.conns = this.servers.map(() => ({ es: null, lastId: null, retry: 1000, open: false }));
       this.seen = new Set();
-      this.es = null;
-      this.retry = 1000;
-      this.connected = false;
+      this.preferred = 0;
     }
 
-    connect() {
-      const since = this.lastId || '12h';
-      const url = `${this.server}/${encodeURIComponent(this.topic)}/sse?since=${encodeURIComponent(since)}`;
+    get connected() { return this.conns.some((c) => c.open); }
+    // token dotyczy tylko konta na serwerze głównym
+    tokenFor(i) { return i === 0 ? this.token : ''; }
+
+    connect() { this.servers.forEach((srv, i) => this.connectOne(i)); }
+
+    connectOne(i) {
+      const c = this.conns[i];
+      const url = `${this.servers[i]}/${encodeURIComponent(this.topic)}/sse?since=${encodeURIComponent(c.lastId || '12h')}${authQuery(this.tokenFor(i))}`;
       const es = new EventSource(url);
-      this.es = es;
+      c.es = es;
       es.addEventListener('open', () => {
-        this.retry = 1000;
-        this.connected = true;
+        c.retry = 1000;
+        c.open = true;
         this.onState('open');
       });
       es.onmessage = (ev) => {
         let m;
-        try {
-          m = JSON.parse(ev.data);
-        } catch (e) {
-          return;
-        }
-        if (m.event !== 'message' || !m.id || this.seen.has(m.id)) return;
-        this.seen.add(m.id);
-        if (this.seen.size > 2000) this.seen = new Set(Array.from(this.seen).slice(-1000));
-        this.lastId = m.id;
+        try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (m.event !== 'message' || !m.id) return;
+        c.lastId = m.id;
         let body;
-        try {
-          body = JSON.parse(m.message);
-        } catch (e) {
-          return; // nie nasza wiadomość (np. ktoś wysłał tekst z aplikacji ntfy)
-        }
+        try { body = JSON.parse(m.message); } catch (e) { return; }
         if (!body || typeof body.t !== 'string') return;
+        // ta sama wiadomość może przyjść z obu serwerów – bierzemy pierwszą
+        const key = `${body.t}|${body.ts}|${body.cmd || ''}`;
+        if (this.seen.has(key)) return;
+        this.seen.add(key);
+        if (this.seen.size > 500) this.seen = new Set(Array.from(this.seen).slice(-250));
         try {
-          this.onMessage(body, { id: m.id, time: m.time * 1000 });
+          this.onMessage(body, { id: m.id, time: m.time * 1000, server: this.servers[i] });
         } catch (e) {
           console.error('Błąd obsługi wiadomości', e, body);
         }
       };
       es.onerror = () => {
         es.close();
-        if (this.es !== es) return;
-        this.connected = false;
+        if (c.es !== es) return;
+        c.open = false;
         this.onState('closed');
-        setTimeout(() => this.connect(), this.retry);
-        this.retry = Math.min(this.retry * 2, 30000);
+        setTimeout(() => this.connectOne(i), c.retry);
+        c.retry = Math.min(c.retry * 2, 30000);
       };
     }
 
-    async publish(obj, { cache = true } = {}) {
+    async post(i, body, cache) {
       const headers = { 'X-Firebase': 'no' };
       if (!cache) headers['X-Cache'] = 'no';
-      const res = await fetch(`${this.server}/${encodeURIComponent(this.topic)}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(Object.assign({ ts: Date.now() }, obj)),
-      });
+      const token = this.tokenFor(i);
+      if (token) headers.Authorization = 'Bearer ' + token;
+      const res = await fetch(`${this.servers[i]}/${encodeURIComponent(this.topic)}`, { method: 'POST', headers, body });
       if (!res.ok) throw new Error(`ntfy ${res.status}`);
       return res.json();
     }
+
+    async publish(obj, { cache = true } = {}) {
+      const body = JSON.stringify(Object.assign({ ts: Date.now() }, obj));
+      let last = null;
+      for (let k = 0; k < this.servers.length; k++) {
+        const i = (this.preferred + k) % this.servers.length;
+        try {
+          const out = await this.post(i, body, cache);
+          this.preferred = i;
+          return out;
+        } catch (e) {
+          last = e;
+          if (!/ntfy (429|5\d\d)|Failed|NetworkError|load failed/i.test(e.message)) throw e;
+        }
+      }
+      throw last || new Error('ntfy niedostępne');
+    }
   }
 
-  global.WL = { DEFAULT_CONFIG, STYLES, normalizeConfig, readParams, fmt, tierOf, randomTopic, store, Bus };
+  global.WL = { DEFAULT_CONFIG, STYLES, BACKUP_SERVER, normalizeConfig, readParams, fmt, tierOf, randomTopic, store, Bus };
 })(window);

@@ -1167,7 +1167,10 @@ if (P.fake) {
 }
 
 if (P.topic && !P.fake) {
-  bus = new WL.Bus({ server: P.server, topic: P.topic, onMessage, onState: () => renderInfo() });
+  bus = new WL.Bus({
+    servers: [P.server, P.server2 !== 'off' ? P.server2 : null],
+    topic: P.topic, token: P.token, onMessage, onState: () => renderInfo(),
+  });
   bus.connect();
   publishStatusSoon(3000);
 }
