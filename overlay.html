@@ -1253,9 +1253,9 @@ function statusPayload() {
     },
   };
 }
-function publishStatusSoon(delay = 1200) {
+function publishStatusSoon(delay = 1200, force = false) {
   if (!bus) return;
-  const wait = Math.max(delay, STATUS_MIN_GAP - (Date.now() - lastStatusAt));
+  const wait = force ? delay : Math.max(delay, STATUS_MIN_GAP - (Date.now() - lastStatusAt));
   clearTimeout(statusTimer);
   statusTimer = setTimeout(() => {
     lastStatusAt = Date.now();
@@ -1301,7 +1301,7 @@ function onCommand(m) {
   const t = total();
   switch (m.cmd) {
     case 'ping':
-      publishStatusSoon(300);
+      publishStatusSoon(300, true);
       break;
     case 'test': {
       const tier = Number(m.tier) || (t != null ? WL.tierOf(t, cfg.step) + cfg.step : cfg.step * 10);
@@ -1324,18 +1324,23 @@ function onCommand(m) {
       playPending();
       break;
     case 'clear-pending':
+      // pomijamy wszystko, co czeka: próg i cele
       if (S.pending != null) S.lastCelebrated = Math.max(S.lastCelebrated ?? S.pending, S.pending);
       S.pending = null;
       S.pendingFrom = null;
+      for (const g of S.pendingGoals) if (!S.goalsDone.includes(g.n)) S.goalsDone.push(g.n);
+      S.pendingGoals = [];
       saveState();
-      publishStatusSoon(300);
+      publishStatusSoon(300, true);
       break;
     case 'reset':
       S.lastCelebrated = t != null ? WL.tierOf(t, cfg.step) : null;
       S.pending = null;
       S.pendingFrom = null;
+      for (const g of cfg.goals || []) if (t != null && t >= g.n && !S.goalsDone.includes(g.n)) S.goalsDone.push(g.n);
+      S.pendingGoals = [];
       saveState();
-      publishStatusSoon(300);
+      publishStatusSoon(300, true);
       break;
     case 'reload':
       // z parametrem, żeby OBS pobrał stronę od nowa zamiast z pamięci podręcznej

@@ -362,7 +362,8 @@
             </div>
             <span class="hint">Potrzebny tylko przy koncie płatnym. Nie trafia do żadnego linku ani na kanał.</span>
           </label>
-          <button id="changeTopic">Zmień kanał</button>
+          <div class="inline"><input type="text" id="newTopic" placeholder="nowy kanał (puste = wylosuj)" autocomplete="off"><button id="changeTopic">Zmień kanał</button></div>
+          <div class="sub">Po zmianie trzeba podmienić link w OBS i <code>ntfyTopic</code> w pollerze.</div>
         </div>
       </details>
     </section>
@@ -681,9 +682,28 @@ function start() {
     }
   }
   function ping() { bus.publish({ t: 'cmd', cmd: 'ping' }, { cache: false }).catch(() => {}); }
+  function armConfirm(btn, action) {
+    if (btn._armed) {
+      clearTimeout(btn._t);
+      btn._armed = false;
+      btn.textContent = btn._label;
+      btn.classList.remove('pink');
+      action();
+      return;
+    }
+    btn._label = btn.textContent;
+    btn._armed = true;
+    btn.textContent = 'Na pewno? Kliknij jeszcze raz';
+    btn.classList.add('pink');
+    btn._t = setTimeout(() => {
+      btn._armed = false;
+      btn.textContent = btn._label;
+      btn.classList.remove('pink');
+    }, 5000);
+  }
   document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => {
-    if (b.dataset.confirm && !confirm(b.dataset.confirm)) return;
-    cmd(b.dataset.cmd);
+    if (b.dataset.confirm) armConfirm(b, () => cmd(b.dataset.cmd));
+    else cmd(b.dataset.cmd);
   }));
   $('testBtn').onclick = () => cmd('test', { tier: Number($('testTier').value) || null });
   $('goalTestBtn').onclick = async () => {
@@ -695,25 +715,32 @@ function start() {
     if (dirty) { clearTimeout(sendTimer); await sendConfig(); }
     cmd('test');
   };
-  $('manualBtn').onclick = async () => {
+  $('manualBtn').onclick = () => {
     const n = Number($('manualCount').value);
     if (!Number.isFinite(n) || $('manualCount').value === '') return toast('Wpisz liczbę');
-    if (!confirm(`Wysłać ręcznie liczbę wishlist z API: ${WL.fmt(n)}? (bez korekty)`)) return;
-    try {
-      await bus.publish({ t: 'count', raw: Math.round(n), today: null, yesterday: null, source: 'manual', checkedAt: Date.now() });
-      toast('Wysłano liczbę');
-    } catch (e) { toast('Błąd: ' + e.message); }
+    armConfirm($('manualBtn'), async () => {
+      try {
+        await bus.publish({ t: 'count', raw: Math.round(n), today: null, yesterday: null, source: 'manual', checkedAt: Date.now() });
+        toast('Wysłano liczbę ' + WL.fmt(n));
+      } catch (e) { toast('Błąd: ' + e.message); }
+    });
   };
   document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
     const text = $(b.dataset.copy).textContent;
-    try { await navigator.clipboard.writeText(text); toast('Skopiowano'); }
-    catch (e) { prompt('Skopiuj:', text); }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Skopiowano');
+    } catch (e) {
+      const el = $(b.dataset.copy);
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      toast('Zaznaczone – skopiuj ręcznie');
+    }
   }));
-  $('changeTopic').onclick = () => {
-    const t = prompt('Nowy kanał (puste = wygeneruj):', '');
-    if (t === null) return;
-    if (confirm('Po zmianie kanału musisz podmienić link w OBS i ntfyTopic w pollerze. Kontynuować?')) setTopic(t.trim() || WL.randomTopic());
-  };
+  $('changeTopic').onclick = () => armConfirm($('changeTopic'), () => setTopic($('newTopic').value.trim() || WL.randomTopic()));
 
   // ntfy.sh ma 250 wiadomości dziennie na IP, więc odpytujemy overlay oszczędnie
   const pingIfStale = (maxAge) => { if (document.visibilityState === 'visible' && R.connected && Date.now() - R.statusTime > maxAge) ping(); };
