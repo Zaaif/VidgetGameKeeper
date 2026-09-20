@@ -531,6 +531,13 @@ function tick() {
     lastGateCode = g.code;
     if (S.pending != null) publishStatusSoon();
   }
+  // ten sam numer jako próg i jako cel = jedna animacja, ta od celu
+  if (S.pending != null && S.pendingGoals.some((x) => x.n === S.pending)) {
+    S.lastCelebrated = Math.max(S.lastCelebrated ?? S.pending, S.pending);
+    S.pending = null;
+    S.pendingFrom = null;
+    saveState();
+  }
   if (!playing && g.ok) {
     if (S.pending != null) playPending();
     else if (S.pendingGoals.length) playGoalNext();
